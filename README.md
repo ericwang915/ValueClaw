@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="assets/logo.png" alt="value_claw" width="160">
+  <img src="assets/logo.png" alt="ValueClaw" width="160">
 </p>
 
-<h1 align="center">value_claw</h1>
+<h1 align="center">ValueClaw 🦅</h1>
 
 <p align="center">
-  <strong>Your Autonomous AI Investment Analyst — Built in pure Python.</strong><br>
-  Market Research · Fundamentals Analysis · Web Dashboard · Voice · Multi-Channel
+  <strong>Your Autonomous AI Investment Analyst — Built entirely in Python.</strong><br>
+  Market Research · Fundamentals Analysis · Sentiment Tracking · Web Dashboard · Multi-Channel
 </p>
 
 <p align="center">
@@ -26,262 +26,142 @@
 </p>
 
 <p align="center">
-  <em>An intelligent agent dedicated to deep financial research, SEC filing analysis, and market monitoring.</em>
+  <em>An intelligent, provider-agnostic native AI agent dedicated to deep financial research, SEC filing analysis, and autonomous market monitoring. Surpass human limitations with code-driven investment intelligence.</em>
 </p>
 
 ---
 
-## Highlights
+## 🌟 Why ValueClaw?
 
-| | Feature | Details |
-|---|---------|---------|
-| 📈 | **Investment Analysis** | Fundamental and technical research, generating actionable market insights |
-| 🧠 | **Provider-agnostic** | DeepSeek, Grok, Claude, Gemini, Kimi, GLM — or any OpenAI-compatible API |
-| 🛠️ | **Extensible Skills** | Add custom Python scripts or workflows for your own research pipelines |
-| 💾 | **Persistent memory** | Markdown-based long-term memory with daily logs and semantic recall |
-| 🔍 | **Hybrid RAG** | BM25 + dense embeddings + RRF fusion + LLM re-ranking |
-| 🌐 | **Web dashboard** | Browser UI for chat, config, skill catalog, and identity editing |
-| 🎙️ | **Voice input** | Deepgram speech-to-text in the web chat |
-| ⏰ | **Cron schedules** | Schedule recurring market monitoring tasks (e.g. daily news brief at 9 AM) tracked via Prefect |
-| 📡 | **Multi-channel** | CLI, Web, Telegram, Discord, WhatsApp — same analyst, different interfaces |
-| 🔄 | **Daemon mode** | PID-managed background process with `start` / `stop` / `status` |
+While other frameworks offer generic conversational AI, **ValueClaw** is engineered from the ground up to be a **Tier-1 Financial Analyst**. It bridges the gap between massive LLM reasoning capabilities (like DeepSeek, GPT-4, and Claude) and hard quantitative market data. 
+
+- **Data-Driven Objectivity:** Never hallucinates stock prices. ValueClaw pulls real-time data before answering.
+- **Provider-Agnostic Engine:** Swap between DeepSeek, Grok, Claude, Gemini, Kimi, and GLM on the fly.
+- **Persistent Memory:** Remembers your portfolio preferences, risk tolerance, and historical market contexts.
+- **Hybrid RAG Architecture:** Fuses BM25 sparse retrieval with dense embeddings for pinpoint accuracy on massive SEC documents.
+- **Always Online:** Runs as a standalone background daemon interacting with you seamlessly via Telegram, Discord, WhatsApp, or its own rich Web Dashboard.
 
 ---
 
-## Quick Start
+## 📈 Investment Capabilities (Deep Dive)
+
+ValueClaw's true power lies in its extensible **Financial Skills Engine**. Out of the box, it is equipped to handle complex quantitative and qualitative research tasks.
+
+### 1. Market Data Mastery
+- **`yahoo-finance`**: Instantly pull global stock prices, historical ticks, and major indices.
+- **`tushare-finance`**: Deep integration with Chinese A-Shares. Fetch daily quotes, margin trading data, and macroeconomic indicators (PMI, CPI).
+- **`akshare_data`**: Access an arsenal of alternative data for futures, options, and foreign exchange markets.
+
+### 2. Corporate Fundamentals
+- **`sec_filings`**: Automatically fetch 10-K and 10-Q reports directly from the SEC EDGAR database. The agent reads the raw filings, bypasses PR spin, and extracts critical risk factors and management discussions.
+- **`stock_fundamentals`**: Calculates and tracks PE, PB, ROE, EPS, Free Cash Flow, and operating margins to evaluate intrinsic value.
+
+### 3. Quantitative & Technical Analysis
+- **`technical_analysis`**: Calculates dynamic indicators including RSI, MACD, Moving Averages (EMA/SMA), and Bollinger Bands to optimize entry/exit points.
+- **`market-environment-analysis`**: Assesses macroeconomic trends and broader market sentiment to determine systematic risk levels.
+
+### 4. News & Social Sentiment Engine
+- **`finance-news`**: Monitors breaking financial news across global endpoints.
+- **`twitter-news`**: Analyzes social media sentiment in real-time to front-run retail trends and viral market movements.
+
+### 5. Strategy & Trading Assistants
+- **`trading-coach`**: Acts as your personal quant strategist. Submit a portfolio hypothesis, and the agent will backtest the logic, pointing out historical flaws and risk exposures.
+- **`etf-assistant`**: Recommends ETF allocations based on desired thematic exposure (e.g., "Give me a low-volatility semiconductor basket").
+
+---
+
+## 🌐 Web & Deep Research Capabilities
+
+When financial data platforms fall short, ValueClaw takes to the open web.
+
+- **`perplexity_search`**: Connected to the `sonar-pro` model, the agent can synthesize massive geopolitical reports, supply chain disruptions, and macro research dynamically.
+- **`brave_search`**: Programmatic, unbiased web searches for the latest unindexed events and press releases.
+- **`summarize`**: Feed the agent an earnings call transcript link, and receive a structured, 5-point executive summary in seconds.
+
+---
+
+## 🚀 Quick Start
+
+### 1. Installation
+Install the package directly via pip (Requires Python 3.10+):
 
 ```bash
 pip install value_claw
+```
 
-# First-time setup — choose your LLM provider and enter API key
+### 2. Initialization Wizard
+Set up your preferred LLM provider (e.g., DeepSeek, OpenAI) and API keys securely:
+
+```bash
 value_claw onboard
+```
 
-# Start the agent daemon (web dashboard at http://localhost:7788)
+### 3. Launch the Analyst
+Start ValueClaw as a persistent background daemon:
+
+```bash
 value_claw start
+```
+*The local Web UI dashboard is now available at `http://localhost:7788`.*
 
-# Interactive CLI chat
+### 4. Chat
+Interact with your deployment directly from the terminal or Telegram:
+
+```bash
 value_claw chat
-
-# Stop the daemon
-value_claw stop
-```
-
-**From source:**
-
-```bash
-git clone https://github.com/ericwang915/ValueClaw.git
-cd value_claw
-pip install -e .
-value_claw onboard
 ```
 
 ---
 
-## CLI Reference
-
-| Command | Description |
-|---------|-------------|
-| `value_claw onboard` | Interactive setup wizard — choose LLM provider, enter API key |
-| `value_claw start` | Start the agent as a background daemon |
-| `value_claw start -f` | Start in foreground (no daemonize) |
-| `value_claw start --channels telegram discord whatsapp` | Start with messaging channels |
-| `value_claw stop` | Stop the running daemon |
-| `value_claw status` | Show daemon status (PID, uptime, port) |
-| `value_claw chat` | Interactive CLI chat (foreground REPL) |
-
-### First Run
+## 🧠 Architecture Overview
 
 ```
-$ value_claw start
-
-  ╔══════════════════════════════════════╗
-  ║       value_claw — Setup Wizard      ║
-  ╚══════════════════════════════════════╝
-
-  Choose your LLM provider:
-
-    1. DeepSeek
-    2. Grok (xAI)
-    3. Claude (Anthropic)
-    4. Gemini (Google)
-    5. Kimi (Moonshot)
-    6. GLM (Zhipu / ChatGLM)
-
-  Enter number (1-6): 2
-  → Grok (xAI)
-
-  API Key: ********
-  → Key set (xai-****)
-
-  Validating... ✔ Valid!
-  ✔ Setup complete!
-
-[value_claw] Daemon started (PID 12345).
-[value_claw] Dashboard: http://localhost:7788
+┌─────────────────────────────────────────────────────────────────┐
+│                          ValueClaw                              │
+├───────────┬────────────┬─────────────┬──────────────────────────┤
+│ Interface │ Lifecycle  │ Memory &    │      Core Engine         │
+│           │            │ State       │                          │
+│ CLI       │ Start      │ Markdown    │ ├─ Hybrid RAG Retrieval  │
+│ Web UI  ◄─┤ Stop       │ Local DB    │ ├─ Financial Skills      │
+│ Telegram  │ Status     │ Locks       │ ├─ Context Compaction    │
+│ Discord   │ Cron Jobs  │ Per-group   │ ├─ Persona Manager       │
+├───────────┴────────────┴─────────────┴──────────────────────────┤
+│                 LLM Provider Abstraction Layer                  │
+│ DeepSeek │ Grok │ Claude │ Gemini │ Kimi │ GLM | OpenAI API     │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Architecture
+## 🛠️ Configuration
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                         value_claw                            │
-├──────────┬────────────┬───────────┬──────────────────────────┤
-│ CLI      │ Daemon     │ Sessions  │      Core                │
-│          │            │           │                          │
-│ onboard  │ start /    │ Store(MD) │ Agent                    │
-│ chat     │ stop /     │ Manager   │ ├─ Memory (Markdown)     │
-│ skill …  │ status     │ Locks +   │ ├─ RAG (Hybrid)          │
-│          │            │ Semaphore │ ├─ Skills (3-tier)       │
-│ Web UI ◄─┤ Channels   │           │ ├─ Compaction            │
-│ Voice In │ Telegram   │ Per-group │ ├─ Soul + Persona        │
-│          │ Discord    │ Isolation │ ├─ Group Context          │
-│          │ WhatsApp   │           │ └─ Tool Execution        │
-├──────────┴────────────┴───────────┴──────────────────────────┤
-│               LLM Provider Abstraction Layer                 │
-│ DeepSeek │ Grok │ Claude │ Gemini │ Kimi │ GLM              │
-└──────────────────────────────────────────────────────────────┘
-```
+All system properties, API keys, and model preferences are handled natively in `value_claw.json`. See the [`value_claw.example.json`](value_claw.example.json) to manually configure providers like Brave, Perplexity, or Telegram bots.
 
 ---
 
-## Web Dashboard
+## 🗺️ Roadmap
 
-Start with `value_claw start` and open **http://localhost:7788**.
-
-- **Dashboard** — agent status, persona preview, active tools
-- **Chat** — real-time chat with voice input (Deepgram)
-- **Configuration** — edit LLM provider, API keys, and settings in-browser
-
----
-
-## Configuration
-
-All configuration lives in `value_claw.json` (auto-created by `value_claw onboard`).
-See [`value_claw.example.json`](value_claw.example.json) for the full template.
-
-```jsonc
-{
-  "llm": {
-    "provider": "grok",
-    "grok": { "apiKey": "xai-...", "model": "grok-3" }
-  },
-  "tavily":   { "apiKey": "" },
-  "deepgram": { "apiKey": "" },
-  "web":      { "host": "0.0.0.0", "port": 7788 },
-  "channels": {
-    "telegram": { "token": "" },
-    "discord":  { "token": "" },
-    "whatsapp": { "phoneNumberId": "", "token": "", "verifyToken": "value_claw_verify" }
-  },
-  "isolation":   { "perGroup": false },
-  "concurrency": { "maxAgents": 4 }
-}
-```
-
-Environment variables (e.g. `DEEPSEEK_API_KEY`, `TAVILY_API_KEY`) override JSON values.
+- [x] Integrate global LLM models (DeepSeek, Grok, Gemini, Claude).
+- [x] Multi-Channel Support (Telegram, Discord, Web UI).
+- [x] Fully open-source Skills Marketplace integration.
+- [ ] **Multi-Agent Debate**: Spawn two agents (a Bull and a Bear) to argue a stock thesis before finalizing a report.
+- [ ] **Live Trade Integration**: Direct API hookups for Alpaca and Interactive Brokers paper trading.
+- [ ] **PDF/Image Parse**: Native visual parsing for bespoke hedge fund reports and charting images.
 
 ---
 
-## Supported LLM Providers
+## 🤝 Contributing
 
-| Provider | Default Model | Install Extra |
-|----------|---------------|---------------|
-| **DeepSeek** | `deepseek-chat` | — |
-| **Grok (xAI)** | `grok-3` | — |
-| **Claude (Anthropic)** | `claude-sonnet-4-20250514` | — (included) |
-| **Gemini (Google)** | `gemini-2.0-flash` | — (included) |
-| **Kimi (Moonshot)** | `moonshot-v1-128k` | — |
-| **GLM (Zhipu)** | `glm-4-flash` | — |
-| Any OpenAI-compatible | Custom | — |
+We welcome pull requests! Whether you are building a new financial skill, optimizing the RAG pipeline, or translating documentation—your contributions are highly valued. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-## Built-in Skills & Extensions
+## 📜 License
 
-ValueClaw comes pre-loaded with a powerful suite of skills designed specifically for deep financial research and internet investigation. 
-
-### 🌐 Web Capabilities
-- **`perplexity_search`**: Deep AI-synthesized internet research using the Perplexity `sonar-pro` API. Excellent for multi-source financial reporting.
-- **`brave_search`**: Fast, unbiased, and privacy-respecting programmatic web searches via the Brave Search API.
-- **`tavily_search`**: High-speed AI-optimized search designed for LLM agents.
-- **`summarize`**: Instantly extract, read, and summarize long-form articles from any URL.
-
-### 📈 Investment Capabilities
-- **Market Data Providers**: Integrations with `yahoo-finance`, `tushare-finance` (China A-Shares), and `akshare_data` for global price, volume, and tick data.
-- **Corporate Fundamentals**: `sec_filings` to fetch, read, and analyze 10-K/10-Q reports from EDGAR, paired with `stock_fundamentals` for deep financial ratio breakdowns.
-- **Quantitative & Technical**: Modules like `technical_analysis`, `a-stock-analysis`, and `market-environment-analysis` compute indicators (RSI, MACD, Bollinger Bands) and assess macroeconomic trends.
-- **News & Sentiment**: `finance-news` and `twitter-news` APIs tap into real-time market sentiment and breaking headlines.
-- **Strategy & Coaching**: `trading-coach` and `etf-assistant` offer AI-driven guidance on portfolio allocation and backtesting strategies.
-- **Execution**: The `interactive-brokers` skill provides an extensible foundation for paper trading and live account lookups.
-
-### Progressive Loading Pipeline
-
-Expand your analyst's capabilities by writing custom tools. `value_claw` loads skills progressively:
-
-| Level | Loaded When | Content |
-|-------|-------------|---------|
-| **L1 — Metadata** | Always (startup) | `name` + `description` from YAML frontmatter |
-| **L2 — Instructions** | Agent activates skill | Full SKILL.md body |
-| **L3 — Resources** | As needed | Bundled Python scripts, schemas, data files |
-
-```yaml
----
-name: sec_filings
-description: Fetch and analyze 10-K and 10-Q reports from SEC EDGAR.
----
-# SEC Filings Analyzer
-
-## Instructions
-Run `python {skill_path}/fetch_edgar.py "TICKER"`
-```
-
-
----
-
-## Memory & RAG
-
-### Markdown Memory
-
-```
-~/.value_claw/context/memory/
-├── MEMORY.md           # Curated long-term memory
-└── 2026-03-24.md       # Daily append-only log
-```
-
-When **per-group isolation** is enabled (`"isolation": { "perGroup": true }` in config),
-each session (Telegram chat, Discord channel, etc.) gets its own `memory/`, `persona/`,
-and `soul/` under `~/.value_claw/context/groups/<session-id>/`, while global memories
-remain accessible via read-through fallback.
-
-### Hybrid RAG Pipeline
-
-For deep research spanning multiple documents:
-```
-Query → BM25 (sparse) + Embeddings (dense) → RRF Fusion → LLM Re-ranker → Top-K
-```
-
----
-
-## Development
-
-```bash
-git clone https://github.com/ericwang915/ValueClaw.git
-cd value_claw
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
-pytest tests/ -v
-```
-
----
-
-## License
-
-[MIT](LICENSE)
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
 <p align="center">
-  <sub>If value_claw helps you navigate the markets, consider giving it a ⭐</sub>
+  <sub>If ValueClaw saves you time or makes you money, consider giving the repo a ⭐</sub>
 </p>
