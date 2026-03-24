@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Your Autonomous AI Investment Analyst — Built entirely in Python.</strong><br>
-  Market Research · Fundamentals Analysis · Sentiment Tracking · Web Dashboard · Multi-Channel
+  Market Research · Fundamentals Analysis · Sentiment Tracking · Web Chat Interface · Multi-Channel
 </p>
 
 <p align="center">
@@ -39,7 +39,7 @@ While other frameworks offer generic conversational AI, **ValueClaw** is enginee
 - **Provider-Agnostic Engine:** Swap between DeepSeek, Grok, Claude, Gemini, Kimi, and GLM on the fly.
 - **Persistent Memory:** Remembers your portfolio preferences, risk tolerance, and historical market contexts.
 - **Hybrid RAG Architecture:** Fuses BM25 sparse retrieval with dense embeddings for pinpoint accuracy on massive SEC documents.
-- **Always Online:** Runs as a standalone background daemon interacting with you seamlessly via Telegram, Discord, WhatsApp, or its own rich Web Dashboard.
+- **Always Online:** Runs as a standalone background daemon interacting with you seamlessly via Telegram, Discord, WhatsApp, or its own Web Chat Interface.
 
 ---
 
@@ -102,7 +102,7 @@ Start ValueClaw as a persistent background daemon:
 ```bash
 value_claw start
 ```
-*The local Web UI dashboard is now available at `http://localhost:7788`.*
+*The local Web Chat Interface is now available at `http://localhost:7788`.*
 
 ### 4. Chat
 Interact with your deployment directly from the terminal or Telegram:
@@ -122,7 +122,7 @@ value_claw chat
 │ Interface │ Lifecycle  │ Memory &    │      Core Engine         │
 │           │            │ State       │                          │
 │ CLI       │ Start      │ Markdown    │ ├─ Hybrid RAG Retrieval  │
-│ Web UI  ◄─┤ Stop       │ Local DB    │ ├─ Financial Skills      │
+│ Web Chat  ◄─┤ Stop       │ Local DB    │ ├─ Financial Skills      │
 │ Telegram  │ Status     │ Locks       │ ├─ Context Compaction    │
 │ Discord   │ Cron Jobs  │ Per-group   │ ├─ Persona Manager       │
 ├───────────┴────────────┴─────────────┴──────────────────────────┤
