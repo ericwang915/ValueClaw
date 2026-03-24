@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo-300.png" alt="value_claw" width="160">
+  <img src="assets/logo.png" alt="value_claw" width="160">
 </p>
 
 <h1 align="center">value_claw</h1>
