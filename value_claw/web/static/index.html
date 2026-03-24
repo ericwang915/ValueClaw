@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>value_claw Dashboard</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand:   { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a5f' },
+            surface: { 50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',300:'#cbd5e1',700:'#334155',750:'#283548',800:'#1e293b',850:'#172033',900:'#0f172a',950:'#080e1b' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    *{box-sizing:border-box}
+    body{font-family:'Inter',system-ui,-apple-system,sans-serif}
+    code,pre,.font-mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+    .fade-in{animation:fadeIn .25s ease-out}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .chat-scroll::-webkit-scrollbar{width:5px}
+    .chat-scroll::-webkit-scrollbar-track{background:transparent}
+    .chat-scroll::-webkit-scrollbar-thumb{background:#334155;border-radius:99px}
+    .msg-user{background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%)}
+    .msg-bot{background:#1e293b;border:1px solid rgba(51,65,85,.6)}
+    .nav-item{transition:all .15s ease}
+    .nav-item:hover{background:rgba(30,41,59,.7)}
+    .nav-item.active{background:rgba(37,99,235,.12);color:#60a5fa;border-right:2px solid #3b82f6}
+    .pulse-dot{animation:pulseDot 1.4s ease-in-out infinite}
+    @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.3}}
+    .card{background:#1e293b;border:1px solid rgba(51,65,85,.5);border-radius:.75rem;padding:1rem 1.25rem}
+    .card:hover{border-color:rgba(59,130,246,.25)}
+    .input-field{background:#0f172a;border:1px solid #334155;border-radius:.5rem;padding:.5rem .75rem;font-size:.8125rem;color:#e2e8f0;transition:border-color .2s;width:100%;outline:none}
+    .input-field:focus{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.15)}
+    select.input-field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23475569' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center;padding-right:2rem}
+    .btn-primary{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;padding:.5rem 1.25rem;border-radius:.5rem;font-size:.8125rem;font-weight:500;transition:all .2s;border:none;cursor:pointer}
+    .btn-primary:hover{box-shadow:0 4px 15px rgba(37,99,235,.35);transform:translateY(-1px)}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+    .btn-ghost{background:rgba(15,23,42,.6);border:1px solid #334155;color:#94a3b8;padding:.375rem .75rem;border-radius:.5rem;font-size:.75rem;transition:all .15s;cursor:pointer}
+    .btn-ghost:hover{background:#1e293b;color:#e2e8f0;border-color:#475569}
+    .btn-danger{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:.375rem .75rem;border-radius:.5rem;font-size:.75rem;cursor:pointer}
+    .btn-danger:hover{background:rgba(239,68,68,.2)}
+    .pf-item{transition:all .15s;cursor:pointer;border-left:3px solid transparent}
+    .pf-item:hover{background:rgba(30,41,59,.5)}
+    .pf-item.active{background:rgba(37,99,235,.08);border-left-color:#3b82f6}
+    .mode-badge{font-size:.625rem;padding:.125rem .5rem;border-radius:9999px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+    .mode-live{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+    .mode-simulate{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)}
+    .tab-content{display:none}
+    .tab-content.active{display:flex}
+    .settings-section{display:none}
+    .settings-section.active-section{display:block}
+  </style>
+</head>
+<body class="h-full bg-surface-950 text-gray-300 overflow-hidden">
+<div class="flex h-full">
+
+  <!-- ═══════ Sidebar ═══════ -->
+  <aside class="w-[60px] bg-surface-900 border-r border-surface-700/50 flex flex-col items-center shrink-0">
+    <div class="py-4 mb-2">
+      <img src="/static/logo.png" alt="VC" class="w-8 h-8 rounded-lg shadow-lg">
+    </div>
+    <nav class="flex-1 flex flex-col items-center gap-1 px-1.5">
+      <button onclick="switchTab('portfolio')" id="nav-portfolio" title="Portfolio" class="nav-item w-10 h-10 rounded-lg flex items-center justify-center text-gray-500">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+      </button>
+      <button onclick="switchTab('chat')" id="nav-chat" title="Chat" class="nav-item w-10 h-10 rounded-lg flex items-center justify-center text-gray-500">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+      </button>
+      <button onclick="switchTab('settings')" id="nav-settings" title="Settings" class="nav-item w-10 h-10 rounded-lg flex items-center justify-center text-gray-500">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </nav>
+    <div class="py-3">
+      <div id="ws-dot" class="w-2.5 h-2.5 rounded-full bg-red-400" title="Disconnected"></div>
+    </div>
+  </aside>
+
+  <!-- ═══════ Main Content ═══════ -->
+  <main class="flex-1 flex flex-col overflow-hidden bg-surface-950">
+
+    <!-- ═══ Portfolio Tab ═══ -->
+    <div id="tab-portfolio" class="tab-content flex-1 flex-col overflow-hidden fade-in">
+      <!-- Top bar: mode toggle + active portfolio -->
+      <div class="px-5 py-2.5 border-b border-surface-700/40 flex items-center gap-4 shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-500">Portfolio:</span>
+          <button onclick="doSwitchPortfolio('us-stocks')" id="pf-btn-us-stocks" class="btn-ghost text-xs">US Stocks</button>
+          <button onclick="doSwitchPortfolio('crypto')" id="pf-btn-crypto" class="btn-ghost text-xs">Crypto</button>
+        </div>
+        <div class="flex items-center gap-2 ml-auto">
+          <span class="text-xs text-gray-500">Mode:</span>
+          <button onclick="doSwitchMode('simulate')" id="mode-btn-simulate" class="mode-badge mode-simulate">Simulate</button>
+          <button onclick="doSwitchMode('live')" id="mode-btn-live" class="mode-badge mode-live" style="opacity:.4">Live</button>
+        </div>
+      </div>
+
+      <div class="flex flex-1 overflow-hidden">
+        <!-- Left: Both portfolios summary -->
+        <div class="w-[280px] border-r border-surface-700/40 flex flex-col shrink-0 bg-surface-900/50 overflow-auto">
+          <div class="px-4 py-3 border-b border-surface-700/40">
+            <span class="text-sm font-semibold text-white">Portfolios</span>
+          </div>
+          <div id="portfolios-sidebar" class="flex-1 overflow-auto py-1"></div>
+          <!-- Cash operations -->
+          <div class="px-4 py-3 border-t border-surface-700/40 space-y-2">
+            <div class="text-[.625rem] text-gray-500 uppercase tracking-wider mb-1">Cash Operations</div>
+            <div class="flex gap-2">
+              <input id="cash-amount" type="number" step="any" class="input-field text-xs flex-1" placeholder="Amount...">
+            </div>
+            <div class="flex gap-2">
+              <button onclick="doTopUp()" class="btn-ghost text-[.625rem] flex-1">Top Up</button>
+              <button onclick="doCashOut()" class="btn-ghost text-[.625rem] flex-1">Cash Out</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Middle: Activity / Holdings detail -->
+        <div class="flex-1 flex flex-col min-w-0 border-r border-surface-700/40">
+          <div class="px-5 py-3 border-b border-surface-700/40 flex items-center gap-3">
+            <span class="text-sm font-semibold text-white" id="detail-title">Holdings</span>
+            <span id="detail-mode-badge" class="mode-badge mode-simulate">simulate</span>
+            <span class="ml-auto text-[.625rem] text-gray-500" id="detail-updated"></span>
+          </div>
+          <div id="holdings-detail" class="flex-1 overflow-auto p-5 space-y-2">
+            <div class="text-center text-gray-600 text-sm py-12">Select a portfolio to view holdings</div>
+          </div>
+          <div class="px-4 py-3 border-t border-surface-700/40 flex gap-2 shrink-0">
+            <button onclick="doRefresh()" class="btn-ghost text-xs">Refresh Prices</button>
+            <button onclick="doTakeSnapshot()" class="btn-ghost text-xs">Take Snapshot</button>
+            <button onclick="showAddHolding()" class="btn-ghost text-xs flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              Add Holding
+            </button>
+            <button onclick="showEditAllowed()" class="btn-ghost text-xs ml-auto">Edit Trading List</button>
+          </div>
+        </div>
+
+        <!-- Right: Chart + Stats -->
+        <div class="w-[400px] flex flex-col shrink-0 overflow-auto">
+          <div class="px-5 py-3 border-b border-surface-700/40">
+            <span class="text-sm font-semibold text-white">Portfolio Value History</span>
+          </div>
+          <div class="grid grid-cols-3 gap-3 px-5 py-4">
+            <div>
+              <div class="text-[.625rem] text-gray-500 uppercase tracking-wider mb-0.5">Total Equity</div>
+              <div id="stat-total" class="text-lg font-bold text-white">--</div>
+            </div>
+            <div>
+              <div class="text-[.625rem] text-gray-500 uppercase tracking-wider mb-0.5">Available</div>
+              <div id="stat-cash" class="text-lg font-bold text-gray-300">--</div>
+            </div>
+            <div>
+              <div class="text-[.625rem] text-gray-500 uppercase tracking-wider mb-0.5">Total P&L</div>
+              <div id="stat-pnl" class="text-lg font-bold">--</div>
+            </div>
+          </div>
+          <div class="px-5 pb-4">
+            <div class="card" style="padding:.75rem">
+              <canvas id="pf-chart" height="180"></canvas>
+            </div>
+          </div>
+          <!-- Mode comparison -->
+          <div class="px-5 pb-4">
+            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Mode Comparison</div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="card text-center py-3">
+                <div class="text-[.625rem] text-gray-500 uppercase mb-1">Simulate</div>
+                <div id="cmp-sim-value" class="text-sm font-bold text-emerald-400">--</div>
+                <div id="cmp-sim-pnl" class="text-[.625rem] text-gray-500">P&L: --</div>
+              </div>
+              <div class="card text-center py-3">
+                <div class="text-[.625rem] text-gray-500 uppercase mb-1">Live</div>
+                <div id="cmp-live-value" class="text-sm font-bold text-red-300">--</div>
+                <div id="cmp-live-pnl" class="text-[.625rem] text-gray-500">P&L: --</div>
+              </div>
+            </div>
+          </div>
+          <!-- Allowed trading list -->
+          <div class="px-5 pb-4">
+            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Trading Universe</div>
+            <div id="allowed-tags" class="flex flex-wrap gap-1"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Chat Tab ═══ -->
+    <div id="tab-chat" class="tab-content flex-1 flex-col overflow-hidden fade-in">
+      <div class="px-6 py-3 border-b border-surface-700/40 flex items-center">
+        <span class="text-sm font-semibold text-white">Chat</span>
+        <span id="header-provider" class="ml-auto text-[.6875rem] bg-brand-900/30 text-brand-300 px-2.5 py-1 rounded-full font-medium"></span>
+      </div>
+      <div id="chat-messages" class="flex-1 overflow-auto chat-scroll p-6 space-y-4">
+        <div class="text-center py-16 text-gray-600">
+          <div class="w-12 h-12 mx-auto mb-4 rounded-2xl bg-surface-800 border border-surface-700 flex items-center justify-center">
+            <img src="/static/logo.png" class="w-7 h-7 rounded-lg">
+          </div>
+          <p class="text-sm font-medium text-gray-400">Start a conversation</p>
+          <p class="text-xs text-gray-600 mt-1">Your investment assistant is ready</p>
+        </div>
+      </div>
+      <div class="px-6 py-3 border-t border-surface-700/40">
+        <div id="image-preview" class="hidden mb-2 flex items-center gap-2 bg-surface-800 rounded-lg px-3 py-2">
+          <img id="image-preview-img" class="w-10 h-10 rounded object-cover">
+          <span class="text-xs text-gray-400 flex-1">Image attached</span>
+          <button onclick="clearImageAttachment()" class="text-gray-500 hover:text-red-400">&times;</button>
+        </div>
+        <form id="chat-form" class="flex gap-2 items-end">
+          <div class="flex-1 flex gap-2 bg-surface-900 border border-surface-700 rounded-xl px-3 py-2 focus-within:border-brand-500">
+            <input id="chat-input" class="flex-1 bg-transparent outline-none text-sm text-gray-200 placeholder-gray-600" placeholder="Ask anything..." autocomplete="off">
+            <label class="cursor-pointer text-gray-500 hover:text-gray-300 flex items-center">
+              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+              <input type="file" accept="image/*" class="hidden" onchange="handleImageSelect(event)">
+            </label>
+            <button type="button" id="mic-btn" onclick="toggleMic()" title="Voice input" class="text-gray-500 hover:text-gray-300 flex items-center">
+              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </button>
+          </div>
+          <button type="submit" id="chat-send" class="btn-primary px-4 py-2.5 rounded-xl">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ═══ Settings Tab ═══ -->
+    <div id="tab-settings" class="tab-content flex-1 overflow-auto fade-in">
+      <div class="max-w-[900px] mx-auto p-6">
+        <h2 class="text-lg font-bold text-white mb-5">Settings</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4">
+          <div class="space-y-1">
+            <button onclick="showSettingsSection('provider')" class="settings-nav w-full text-left px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-surface-800 transition" data-section="provider">Model Provider</button>
+            <button onclick="showSettingsSection('general')" class="settings-nav w-full text-left px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-surface-800 transition" data-section="general">General</button>
+            <button onclick="showSettingsSection('channels')" class="settings-nav w-full text-left px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-surface-800 transition" data-section="channels">Channels</button>
+            <button onclick="showSettingsSection('mlflow')" class="settings-nav w-full text-left px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-surface-800 transition" data-section="mlflow">MLflow / Cron</button>
+          </div>
+          <div class="card">
+            <!-- Provider -->
+            <div id="settings-provider" class="settings-section">
+              <div class="text-base font-semibold text-white mb-4">Model Provider</div>
+              <div class="space-y-3">
+                <div>
+                  <label class="text-xs text-gray-400 mb-1 block">Provider</label>
+                  <select id="cfg-provider" class="input-field">
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic (Claude)</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="grok">Grok</option>
+                    <option value="kimi">Kimi</option>
+                    <option value="glm">GLM</option>
+                    <option value="openai-compatible">OpenAI Compatible</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs text-gray-400 mb-1 block">API Key</label>
+                  <input id="cfg-apikey" type="password" class="input-field" placeholder="sk-...">
+                </div>
+                <div>
+                  <label class="text-xs text-gray-400 mb-1 block">Model</label>
+                  <input id="cfg-model" class="input-field" placeholder="e.g. deepseek-chat">
+                </div>
+                <div>
+                  <label class="text-xs text-gray-400 mb-1 block">API Base URL (optional)</label>
+                  <input id="cfg-baseurl" class="input-field" placeholder="https://api.deepseek.com/v1">
+                </div>
+              </div>
+              <div class="mt-4 flex gap-2">
+                <button onclick="saveConfig()" class="btn-primary text-xs">Save Configuration</button>
+                <span id="cfg-save-status" class="text-xs text-gray-500 self-center"></span>
+              </div>
+            </div>
+            <!-- General -->
+            <div id="settings-general" class="settings-section">
+              <div class="text-base font-semibold text-white mb-4">General</div>
+              <div class="space-y-3">
+                <div>
+                  <label class="text-xs text-gray-400 mb-1 block">Tavily API Key (Web Search)</label>
+                  <input id="cfg-tavily" type="password" class="input-field" placeholder="tvly-...">
+                </div>
+                <div>
+                  <label class="text-xs text-gray-400 mb-1 block">Deepgram API Key (Voice)</label>
+                  <input id="cfg-deepgram" type="password" class="input-field" placeholder="...">
+                </div>
+                <div class="flex items-center gap-3 mt-3">
+                  <label class="text-xs text-gray-400">Agent verbose mode</label>
+                  <input id="cfg-verbose" type="checkbox" class="w-4 h-4 rounded bg-surface-900 border-surface-700">
+                </div>
+              </div>
+              <div class="mt-4"><button onclick="saveConfig()" class="btn-primary text-xs">Save</button></div>
+            </div>
+            <!-- Channels -->
+            <div id="settings-channels" class="settings-section">
+              <div class="text-base font-semibold text-white mb-4">Channels</div>
+              <div class="space-y-4">
+                <div>
+                  <div class="text-sm text-gray-300 mb-2">Telegram</div>
+                  <input id="cfg-tg-token" type="password" class="input-field" placeholder="Bot token">
+                </div>
+                <div>
+                  <div class="text-sm text-gray-300 mb-2">Discord</div>
+                  <input id="cfg-dc-token" type="password" class="input-field" placeholder="Bot token">
+                </div>
+              </div>
+              <div class="mt-4"><button onclick="saveConfig()" class="btn-primary text-xs">Save</button></div>
+            </div>
+            <!-- MLflow -->
+            <div id="settings-mlflow" class="settings-section">
+              <div class="text-base font-semibold text-white mb-4">MLflow / Cron Jobs</div>
+              <div id="mlflow-info" class="space-y-3">
+                <div class="flex items-center gap-2">
+                  <div id="mlflow-dot" class="w-2 h-2 rounded-full bg-gray-600"></div>
+                  <span id="mlflow-status-text" class="text-sm text-gray-400">Checking...</span>
+                </div>
+                <a id="mlflow-link" href="#" target="_blank" class="hidden text-sm text-brand-400 hover:underline">Open MLflow UI</a>
+              </div>
+              <div class="mt-4 text-sm font-medium text-gray-300 mb-2">Scheduled Jobs</div>
+              <div id="cron-jobs-list" class="space-y-2 text-xs text-gray-400">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ═══ Add Holding Modal ═══ -->
+<div id="add-holding-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+  <div class="card w-[380px]">
+    <div class="text-sm font-semibold text-white mb-1">Add Holding</div>
+    <div class="text-[.625rem] text-gray-500 mb-3">Only symbols from the allowed trading list</div>
+    <div class="space-y-2">
+      <select id="ah-symbol" class="input-field">
+        <option value="">Select symbol...</option>
+      </select>
+      <input id="ah-quantity" class="input-field" type="number" step="any" placeholder="Quantity">
+      <input id="ah-cost" class="input-field" type="number" step="any" placeholder="Cost per unit">
+    </div>
+    <div class="flex gap-2 mt-3">
+      <button onclick="addHolding()" class="btn-primary text-xs flex-1">Add</button>
+      <button onclick="hideAddHolding()" class="btn-ghost text-xs">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Edit Allowed Symbols Modal ═══ -->
+<div id="edit-allowed-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+  <div class="card w-[420px] max-h-[80vh] flex flex-col">
+    <div class="text-sm font-semibold text-white mb-1">Allowed Trading Symbols</div>
+    <div class="text-[.625rem] text-gray-500 mb-3">Stocks only. No options contracts.</div>
+    <div id="allowed-list" class="flex-1 overflow-auto space-y-1 mb-3 max-h-[300px]"></div>
+    <div class="flex gap-2">
+      <input id="new-allowed-symbol" class="input-field flex-1" placeholder="Add symbol (e.g. AAPL)">
+      <button onclick="doAddAllowed()" class="btn-primary text-xs">Add</button>
+    </div>
+    <div class="flex gap-2 mt-3">
+      <button onclick="hideEditAllowed()" class="btn-ghost text-xs flex-1">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let activePortfolio = 'us-stocks';
+let activeMode = 'simulate';
+let allowedSymbols = {};
+let portfolioChart = null;
+let ws = null;
+let chatWaiting = false;
+let configData = {};
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const tabEl = document.getElementById('tab-' + tab);
+  const navEl = document.getElementById('nav-' + tab);
+  if (tabEl) tabEl.classList.add('active');
+  if (navEl) navEl.classList.add('active');
+  if (tab === 'portfolio') loadPortfolioStatus();
+  if (tab === 'settings') { loadConfig(); showSettingsSection('provider'); }
+}
+
+// ── Portfolio top bar ────────────────────────────────────────────────────────
+function updateTopBar() {
+  document.getElementById('pf-btn-us-stocks').style.opacity = activePortfolio === 'us-stocks' ? '1' : '.4';
+  document.getElementById('pf-btn-crypto').style.opacity = activePortfolio === 'crypto' ? '1' : '.4';
+  document.getElementById('pf-btn-us-stocks').style.borderColor = activePortfolio === 'us-stocks' ? '#3b82f6' : '';
+  document.getElementById('pf-btn-crypto').style.borderColor = activePortfolio === 'crypto' ? '#3b82f6' : '';
+  document.getElementById('mode-btn-simulate').style.opacity = activeMode === 'simulate' ? '1' : '.4';
+  document.getElementById('mode-btn-live').style.opacity = activeMode === 'live' ? '1' : '.4';
+  const badge = document.getElementById('detail-mode-badge');
+  badge.textContent = activeMode;
+  badge.className = 'mode-badge ' + (activeMode === 'live' ? 'mode-live' : 'mode-simulate');
+}
+
+async function doSwitchPortfolio(pid) {
+  await fetch('/api/portfolios/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ portfolio_id: pid }) });
+  activePortfolio = pid;
+  updateTopBar();
+  loadPortfolioStatus();
+}
+
+async function doSwitchMode(mode) {
+  await fetch('/api/portfolios/mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode }) });
+  activeMode = mode;
+  updateTopBar();
+  loadPortfolioStatus();
+}
+
+// ── Portfolio loading ────────────────────────────────────────────────────────
+async function loadPortfolioStatus() {
+  try {
+    const resp = await fetch('/api/portfolios/status');
+    const data = await resp.json();
+    if (!data.ok) return;
+    activePortfolio = data.active_portfolio;
+    activeMode = data.active_mode;
+    updateTopBar();
+
+    const sidebar = document.getElementById('portfolios-sidebar');
+    let html = '';
+    for (const [pid, pinfo] of Object.entries(data.portfolios)) {
+      const isActive = pid === activePortfolio;
+      const simTrack = pinfo.tracks.simulate;
+      const liveTrack = pinfo.tracks.live;
+      allowedSymbols[pid] = pinfo.allowed_symbols || [];
+      html += `
+        <div class="pf-item px-4 py-3 ${isActive ? 'active' : ''}" onclick="doSwitchPortfolio('${pid}')">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium text-gray-200">${esc(pinfo.name)}</div>
+              <div class="text-[.625rem] text-gray-500 mt-0.5">${pinfo.currency} &middot; ${pinfo.allowed_symbols.length} symbols</div>
+            </div>
+            ${isActive ? '<div class="w-1.5 h-1.5 rounded-full bg-brand-400"></div>' : ''}
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <div class="text-[.625rem]">
+              <span class="text-emerald-400/70">SIM</span>
+              <span class="text-gray-400 ml-1">${simTrack.holdings_count}h &middot; $${simTrack.cash_balance.toLocaleString()}</span>
+            </div>
+            <div class="text-[.625rem]">
+              <span class="text-red-300/70">LIVE</span>
+              <span class="text-gray-400 ml-1">${liveTrack.holdings_count}h &middot; $${liveTrack.cash_balance.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    sidebar.innerHTML = html;
+    loadPortfolioDetail();
+  } catch (e) { console.error('loadPortfolioStatus:', e); }
+}
+
+async function loadPortfolioDetail() {
+  try {
+    const [detResp, snapSimResp, snapLiveResp] = await Promise.all([
+      fetch(`/api/portfolios/${activePortfolio}?mode=${activeMode}`),
+      fetch(`/api/portfolios/${activePortfolio}/snapshots?mode=simulate&days=90`),
+      fetch(`/api/portfolios/${activePortfolio}/snapshots?mode=live&days=90`),
+    ]);
+    const detail = await detResp.json();
+    const snapSim = await snapSimResp.json();
+    const snapLive = await snapLiveResp.json();
+    if (!detail.ok) return;
+
+    document.getElementById('detail-title').textContent = detail.name + ' Holdings';
+    document.getElementById('detail-updated').textContent = detail.updated_at ? 'Updated ' + new Date(detail.updated_at).toLocaleString() : '';
+
+    document.getElementById('stat-total').textContent = fmtMoney(detail.total_value);
+    document.getElementById('stat-cash').textContent = fmtMoney(detail.cash_balance);
+    const pnlEl = document.getElementById('stat-pnl');
+    if (detail.total_pnl !== null) {
+      const pct = detail.total_pnl_pct ? ` (${detail.total_pnl_pct > 0 ? '+' : ''}${detail.total_pnl_pct}%)` : '';
+      pnlEl.textContent = (detail.total_pnl >= 0 ? '+' : '') + fmtMoney(detail.total_pnl) + pct;
+      pnlEl.className = 'text-lg font-bold ' + (detail.total_pnl >= 0 ? 'text-emerald-400' : 'text-red-400');
+    } else { pnlEl.textContent = '--'; pnlEl.className = 'text-lg font-bold text-gray-400'; }
+
+    // Holdings table
+    const hEl = document.getElementById('holdings-detail');
+    if (detail.positions && detail.positions.length) {
+      hEl.innerHTML = `
+        <div class="grid grid-cols-[1fr_70px_80px_90px_90px] gap-1 text-[.625rem] text-gray-500 uppercase tracking-wider pb-1 border-b border-surface-700/30 mb-1">
+          <div>Symbol</div><div class="text-right">Qty</div><div class="text-right">Price</div><div class="text-right">Value</div><div class="text-right">P&L</div>
+        </div>
+        ${detail.positions.map(pos => `
+          <div class="grid grid-cols-[1fr_70px_80px_90px_90px] gap-1 text-xs py-2 border-b border-surface-700/20 items-center group">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-gray-200">${pos.symbol}</span>
+              <button onclick="doRemoveHolding('${pos.symbol}')" class="hidden group-hover:block text-gray-600 hover:text-red-400">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div class="text-right text-gray-400">${pos.quantity}</div>
+            <div class="text-right text-gray-300">${pos.current_price ? '$' + pos.current_price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : '--'}</div>
+            <div class="text-right text-gray-300">${pos.market_value != null ? fmtMoney(pos.market_value) : '--'}</div>
+            <div class="text-right ${pos.pnl != null ? (pos.pnl >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}">
+              ${pos.pnl != null ? (pos.pnl >= 0 ? '+' : '') + fmtMoney(pos.pnl) : '--'}
+              ${pos.pnl_pct != null ? '<br><span class="text-[.6rem]">(' + (pos.pnl_pct > 0 ? '+' : '') + pos.pnl_pct + '%)</span>' : ''}
+            </div>
+          </div>
+        `).join('')}
+      `;
+    } else {
+      hEl.innerHTML = '<div class="text-gray-600 text-xs py-8 text-center">No holdings. Add one to start tracking.</div>';
+    }
+
+    // Allowed symbols tags
+    const allowed = detail.allowed_symbols || allowedSymbols[activePortfolio] || [];
+    const tagsEl = document.getElementById('allowed-tags');
+    const heldSymbols = new Set((detail.positions || []).map(p => p.symbol));
+    tagsEl.innerHTML = allowed.map(s =>
+      `<span class="text-[.625rem] px-2 py-0.5 rounded-full ${heldSymbols.has(s) ? 'bg-brand-600/20 text-brand-300 border border-brand-500/30' : 'bg-surface-800 text-gray-500 border border-surface-700/50'}">${s}</span>`
+    ).join('');
+
+    // Mode comparison - load both modes for this portfolio
+    await loadModeComparison();
+
+    // Chart
+    renderChart(
+      activeMode === 'simulate' ? (snapSim.snapshots || []) : (snapLive.snapshots || []),
+      activeMode === 'simulate' ? (snapLive.snapshots || []) : (snapSim.snapshots || []),
+    );
+  } catch (e) { console.error('loadPortfolioDetail:', e); }
+}
+
+async function loadModeComparison() {
+  try {
+    const [simResp, liveResp] = await Promise.all([
+      fetch(`/api/portfolios/${activePortfolio}?mode=simulate`),
+      fetch(`/api/portfolios/${activePortfolio}?mode=live`),
+    ]);
+    const sim = await simResp.json();
+    const live = await liveResp.json();
+
+    if (sim.ok) {
+      document.getElementById('cmp-sim-value').textContent = fmtMoney(sim.total_value);
+      document.getElementById('cmp-sim-pnl').textContent = sim.total_pnl != null ? 'P&L: ' + (sim.total_pnl >= 0 ? '+' : '') + fmtMoney(sim.total_pnl) : 'P&L: --';
+      document.getElementById('cmp-sim-value').className = 'text-sm font-bold ' + (sim.total_pnl >= 0 ? 'text-emerald-400' : 'text-red-400');
+    }
+    if (live.ok) {
+      document.getElementById('cmp-live-value').textContent = fmtMoney(live.total_value);
+      document.getElementById('cmp-live-pnl').textContent = live.total_pnl != null ? 'P&L: ' + (live.total_pnl >= 0 ? '+' : '') + fmtMoney(live.total_pnl) : 'P&L: --';
+      document.getElementById('cmp-live-value').className = 'text-sm font-bold ' + (live.total_pnl >= 0 ? 'text-emerald-400' : 'text-red-400');
+    }
+  } catch (e) {}
+}
+
+function renderChart(primarySnaps, secondarySnaps) {
+  const ctx = document.getElementById('pf-chart');
+  if (portfolioChart) portfolioChart.destroy();
+  if (!primarySnaps.length && !secondarySnaps.length) {
+    portfolioChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: ['No data'], datasets: [{ data: [0], borderColor: '#334155', borderWidth: 1 }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+    });
+    return;
+  }
+  const primaryLabel = activeMode === 'simulate' ? 'Simulate' : 'Live';
+  const secondaryLabel = activeMode === 'simulate' ? 'Live' : 'Simulate';
+  const labels = primarySnaps.map(s => new Date(s.timestamp).toLocaleDateString('en-US', { month:'short', day:'numeric' }));
+  const values = primarySnaps.map(s => s.total_value);
+  const isPositive = values.length > 1 && values[values.length - 1] >= values[0];
+
+  const datasets = [{
+    label: primaryLabel,
+    data: values,
+    borderColor: isPositive ? '#34d399' : '#f87171',
+    backgroundColor: isPositive ? 'rgba(52,211,153,.08)' : 'rgba(248,113,113,.08)',
+    borderWidth: 2, fill: true, tension: .3, pointRadius: 0, pointHitRadius: 10,
+  }];
+  if (secondarySnaps.length) {
+    datasets.push({
+      label: secondaryLabel,
+      data: secondarySnaps.map(s => s.total_value),
+      borderColor: '#475569',
+      borderWidth: 1, borderDash: [4, 4], fill: false, tension: .3, pointRadius: 0,
+    });
+  }
+
+  portfolioChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 10 } } },
+        tooltip: {
+          backgroundColor: '#1e293b', borderColor: '#334155', borderWidth: 1,
+          titleColor: '#e2e8f0', bodyColor: '#94a3b8', padding: 10,
+          callbacks: { label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+        },
+      },
+      scales: {
+        x: { grid: { color: 'rgba(51,65,85,.3)' }, ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(51,65,85,.3)' }, ticks: { color: '#64748b', font: { size: 10 }, callback: v => '$' + v.toLocaleString() } },
+      },
+    },
+  });
+}
+
+// ── Cash operations ──────────────────────────────────────────────────────────
+async function doTopUp() {
+  const amount = parseFloat(document.getElementById('cash-amount').value);
+  if (!amount || amount <= 0) { alert('Enter a positive amount.'); return; }
+  await fetch('/api/portfolios/topup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount }) });
+  document.getElementById('cash-amount').value = '';
+  loadPortfolioStatus();
+}
+
+async function doCashOut() {
+  const amount = parseFloat(document.getElementById('cash-amount').value);
+  if (!amount || amount <= 0) { alert('Enter a positive amount.'); return; }
+  const resp = await fetch('/api/portfolios/cashout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount }) });
+  const data = await resp.json();
+  if (!data.ok) alert(data.error);
+  document.getElementById('cash-amount').value = '';
+  loadPortfolioStatus();
+}
+
+// ── Holdings ─────────────────────────────────────────────────────────────────
+function showAddHolding() {
+  const sel = document.getElementById('ah-symbol');
+  const syms = allowedSymbols[activePortfolio] || [];
+  sel.innerHTML = '<option value="">Select symbol...</option>' + syms.map(s => `<option value="${s}">${s}</option>`).join('');
+  document.getElementById('add-holding-modal').classList.remove('hidden');
+  sel.focus();
+}
+function hideAddHolding() { document.getElementById('add-holding-modal').classList.add('hidden'); }
+
+async function addHolding() {
+  const symbol = document.getElementById('ah-symbol').value;
+  const quantity = parseFloat(document.getElementById('ah-quantity').value);
+  const cost_basis = parseFloat(document.getElementById('ah-cost').value);
+  if (!symbol || !quantity) { alert('Select a symbol and enter quantity.'); return; }
+  const resp = await fetch(`/api/portfolios/${activePortfolio}/holdings`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ symbol, quantity, cost_basis: cost_basis || 0 }),
+  });
+  const data = await resp.json();
+  if (!data.ok) { alert(data.error); return; }
+  hideAddHolding();
+  document.getElementById('ah-symbol').value = '';
+  document.getElementById('ah-quantity').value = '';
+  document.getElementById('ah-cost').value = '';
+  loadPortfolioStatus();
+}
+
+async function doRemoveHolding(symbol) {
+  if (!confirm(`Remove ${symbol}?`)) return;
+  await fetch(`/api/portfolios/${activePortfolio}/holdings/${symbol}`, { method: 'DELETE' });
+  loadPortfolioStatus();
+}
+
+async function doRefresh() { loadPortfolioDetail(); }
+
+async function doTakeSnapshot() {
+  await fetch(`/api/portfolios/${activePortfolio}/snapshot?mode=${activeMode}`, { method: 'POST' });
+  loadPortfolioDetail();
+}
+
+// ── Allowed Symbols ──────────────────────────────────────────────────────────
+function showEditAllowed() {
+  document.getElementById('edit-allowed-modal').classList.remove('hidden');
+  renderAllowedList();
+}
+function hideEditAllowed() { document.getElementById('edit-allowed-modal').classList.add('hidden'); }
+
+function renderAllowedList() {
+  const syms = allowedSymbols[activePortfolio] || [];
+  const el = document.getElementById('allowed-list');
+  if (!syms.length) {
+    el.innerHTML = '<div class="text-gray-600 text-xs text-center py-4">No symbols configured. Add some.</div>';
+    return;
+  }
+  el.innerHTML = syms.map(s => `
+    <div class="flex items-center justify-between bg-surface-900 rounded-lg px-3 py-1.5 text-xs">
+      <span class="font-medium text-gray-200">${s}</span>
+      <button onclick="doRemoveAllowed('${s}')" class="text-gray-600 hover:text-red-400 p-0.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+async function doAddAllowed() {
+  const input = document.getElementById('new-allowed-symbol');
+  const sym = input.value.trim().toUpperCase();
+  if (!sym) return;
+  const resp = await fetch(`/api/portfolios/${activePortfolio}/allowed/${sym}`, { method: 'POST' });
+  const data = await resp.json();
+  if (!data.ok) { alert(data.error); return; }
+  allowedSymbols[activePortfolio] = data.allowed_symbols;
+  input.value = '';
+  renderAllowedList();
+}
+
+async function doRemoveAllowed(sym) {
+  const resp = await fetch(`/api/portfolios/${activePortfolio}/allowed/${sym}`, { method: 'DELETE' });
+  const data = await resp.json();
+  if (!data.ok) { alert(data.error); return; }
+  allowedSymbols[activePortfolio] = data.allowed_symbols;
+  renderAllowedList();
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+function showSettingsSection(section) {
+  document.querySelectorAll('.settings-section').forEach(el => el.classList.remove('active-section'));
+  document.querySelectorAll('.settings-nav').forEach(el => el.classList.remove('bg-surface-800', 'text-white'));
+  const secEl = document.getElementById('settings-' + section);
+  const navEl = document.querySelector(`.settings-nav[data-section="${section}"]`);
+  if (secEl) secEl.classList.add('active-section');
+  if (navEl) { navEl.classList.add('bg-surface-800', 'text-white'); }
+  if (section === 'mlflow') loadMlflowStatus();
+}
+
+async function loadConfig() {
+  try {
+    const resp = await fetch('/api/config');
+    const data = await resp.json();
+    configData = data.config || {};
+    const llm = configData.llm || {};
+    document.getElementById('cfg-provider').value = llm.provider || 'deepseek';
+    document.getElementById('cfg-apikey').value = llm.apiKey || '';
+    document.getElementById('cfg-model').value = llm.model || '';
+    document.getElementById('cfg-baseurl').value = llm.baseUrl || '';
+    document.getElementById('cfg-tavily').value = (configData.tavily || {}).apiKey || '';
+    document.getElementById('cfg-deepgram').value = (configData.deepgram || {}).apiKey || '';
+    document.getElementById('cfg-verbose').checked = (configData.agent || {}).verbose || false;
+    document.getElementById('cfg-tg-token').value = ((configData.channels || {}).telegram || {}).token || '';
+    document.getElementById('cfg-dc-token').value = ((configData.channels || {}).discord || {}).token || '';
+    document.getElementById('header-provider').textContent = llm.provider || '';
+  } catch (e) { console.error('loadConfig:', e); }
+}
+
+async function saveConfig() {
+  const cfg = JSON.parse(JSON.stringify(configData));
+  cfg.llm = cfg.llm || {};
+  cfg.llm.provider = document.getElementById('cfg-provider').value;
+  const ak = document.getElementById('cfg-apikey').value;
+  if (ak && !ak.includes('****')) cfg.llm.apiKey = ak;
+  cfg.llm.model = document.getElementById('cfg-model').value;
+  cfg.llm.baseUrl = document.getElementById('cfg-baseurl').value;
+  cfg.tavily = cfg.tavily || {};
+  const tv = document.getElementById('cfg-tavily').value;
+  if (tv && !tv.includes('****')) cfg.tavily.apiKey = tv;
+  cfg.deepgram = cfg.deepgram || {};
+  const dg = document.getElementById('cfg-deepgram').value;
+  if (dg && !dg.includes('****')) cfg.deepgram.apiKey = dg;
+  cfg.agent = cfg.agent || {};
+  cfg.agent.verbose = document.getElementById('cfg-verbose').checked;
+  cfg.channels = cfg.channels || {};
+  cfg.channels.telegram = cfg.channels.telegram || {};
+  const tg = document.getElementById('cfg-tg-token').value;
+  if (tg && !tg.includes('****')) cfg.channels.telegram.token = tg;
+  cfg.channels.discord = cfg.channels.discord || {};
+  const dc = document.getElementById('cfg-dc-token').value;
+  if (dc && !dc.includes('****')) cfg.channels.discord.token = dc;
+
+  const status = document.getElementById('cfg-save-status');
+  status.textContent = 'Saving...';
+  try {
+    const resp = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: cfg }) });
+    const data = await resp.json();
+    status.textContent = data.ok ? 'Saved!' : 'Error: ' + (data.error || 'unknown');
+    setTimeout(() => status.textContent = '', 3000);
+  } catch (e) { status.textContent = 'Failed: ' + e.message; }
+}
+
+async function loadMlflowStatus() {
+  try {
+    const resp = await fetch('/api/mlflow/status');
+    const data = await resp.json();
+    const dot = document.getElementById('mlflow-dot');
+    const text = document.getElementById('mlflow-status-text');
+    const link = document.getElementById('mlflow-link');
+    if (data.ok && data.running) {
+      dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+      text.textContent = 'MLflow server running';
+      link.href = data.ui_url; link.textContent = data.ui_url; link.classList.remove('hidden');
+    } else {
+      dot.className = 'w-2 h-2 rounded-full bg-gray-600';
+      text.textContent = 'MLflow server not running'; link.classList.add('hidden');
+    }
+    const cronResp = await fetch('/api/cron/jobs');
+    const cronData = await cronResp.json();
+    const jobsEl = document.getElementById('cron-jobs-list');
+    if (cronData.ok && cronData.jobs && cronData.jobs.length) {
+      jobsEl.innerHTML = cronData.jobs.map(j => `
+        <div class="card text-xs flex items-center justify-between">
+          <div><span class="font-medium text-gray-300">${esc(j.job_id)}</span> <span class="text-gray-500 ml-2">${esc(j.cron)}</span></div>
+          <span class="text-gray-500">${j.next_run ? new Date(j.next_run).toLocaleString() : 'paused'}</span>
+        </div>
+      `).join('');
+    } else { jobsEl.innerHTML = '<div class="text-gray-600 text-xs">No scheduled jobs.</div>'; }
+  } catch (e) { console.error('loadMlflowStatus:', e); }
+}
+
+// ── WebSocket Chat ───────────────────────────────────────────────────────────
+function connectWebSocket() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws/chat`);
+  ws.onopen = () => { document.getElementById('ws-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400'; document.getElementById('ws-dot').title = 'Connected'; };
+  ws.onclose = () => { document.getElementById('ws-dot').className = 'w-2.5 h-2.5 rounded-full bg-red-400'; document.getElementById('ws-dot').title = 'Disconnected'; setTimeout(connectWebSocket, 3000); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'thinking') { addThinking(); return; }
+    if (data.type === 'stream') { removeThinking(); appendStreamToken(data.content); return; }
+    removeThinking(); finalizeStream();
+    chatWaiting = false;
+    document.getElementById('chat-send').disabled = false;
+    document.getElementById('chat-input').disabled = false;
+    if (data.type === 'response') addMessage('bot', data.content);
+    else if (data.type === 'error') addMessage('bot', 'Error: ' + data.content);
+  };
+}
+
+let _streamBubble = null, _streamRaw = '';
+function appendStreamToken(text) {
+  const container = document.getElementById('chat-messages');
+  if (!_streamBubble) {
+    const welcome = container.querySelector('.text-center');
+    if (welcome) welcome.remove();
+    const wrapper = document.createElement('div');
+    wrapper.id = 'stream-wrapper'; wrapper.className = 'flex justify-start fade-in';
+    const row = document.createElement('div'); row.className = 'flex items-end gap-2.5 max-w-[75%]';
+    const avatar = document.createElement('div');
+    avatar.className = 'w-7 h-7 rounded-lg bg-surface-800 border border-surface-700 flex items-center justify-center shrink-0';
+    avatar.innerHTML = '<img src="/static/logo.png" class="w-4 h-4 rounded">';
+    row.appendChild(avatar);
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bot text-gray-200 rounded-2xl px-4 py-3 text-[.8125rem] leading-relaxed';
+    row.appendChild(bubble); wrapper.appendChild(row); container.appendChild(wrapper);
+    _streamBubble = bubble; _streamRaw = '';
+  }
+  _streamRaw += text;
+  _streamBubble.innerHTML = renderMarkdown(_streamRaw);
+  scrollChat();
+}
+function finalizeStream() { if (_streamBubble) { const w = document.getElementById('stream-wrapper'); if (w) w.remove(); _streamBubble = null; _streamRaw = ''; } }
+
+function addMessage(role, content) {
+  const container = document.getElementById('chat-messages');
+  const welcome = container.querySelector('.text-center');
+  if (welcome) welcome.remove();
+  const wrapper = document.createElement('div'); wrapper.className = 'flex fade-in ' + (role === 'user' ? 'justify-end' : 'justify-start');
+  const row = document.createElement('div'); row.className = 'flex items-end gap-2.5 max-w-[75%]';
+  if (role === 'bot') {
+    const avatar = document.createElement('div');
+    avatar.className = 'w-7 h-7 rounded-lg bg-surface-800 border border-surface-700 flex items-center justify-center shrink-0';
+    avatar.innerHTML = '<img src="/static/logo.png" class="w-4 h-4 rounded">';
+    row.appendChild(avatar);
+  }
+  const bubble = document.createElement('div');
+  bubble.className = (role === 'user' ? 'msg-user text-white' : 'msg-bot text-gray-200') + ' rounded-2xl px-4 py-3 text-[.8125rem] leading-relaxed';
+  if (role === 'user') bubble.textContent = content; else bubble.innerHTML = renderMarkdown(content);
+  row.appendChild(bubble); wrapper.appendChild(row); container.appendChild(wrapper);
+  scrollChat();
+}
+
+function addThinking() {
+  removeThinking();
+  const container = document.getElementById('chat-messages');
+  const wrapper = document.createElement('div'); wrapper.id = 'thinking-indicator'; wrapper.className = 'flex justify-start fade-in';
+  wrapper.innerHTML = `<div class="flex items-end gap-2.5"><div class="w-7 h-7 rounded-lg bg-surface-800 border border-surface-700 flex items-center justify-center shrink-0"><img src="/static/logo.png" class="w-4 h-4 rounded"></div><div class="msg-bot rounded-2xl px-4 py-3 text-[.8125rem] text-gray-500"><span class="flex items-center gap-1.5"><span class="pulse-dot inline-block w-1.5 h-1.5 rounded-full bg-brand-400"></span><span class="pulse-dot inline-block w-1.5 h-1.5 rounded-full bg-brand-400" style="animation-delay:.2s"></span><span class="pulse-dot inline-block w-1.5 h-1.5 rounded-full bg-brand-400" style="animation-delay:.4s"></span></span></div></div>`;
+  container.appendChild(wrapper); scrollChat();
+}
+function removeThinking() { const el = document.getElementById('thinking-indicator'); if (el) el.remove(); }
+function scrollChat() { const c = document.getElementById('chat-messages'); requestAnimationFrame(() => c.scrollTop = c.scrollHeight); }
+
+function renderMarkdown(text) {
+  let html = esc(text);
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => '<pre class="bg-surface-950 border border-surface-700/50 rounded-lg p-3.5 my-2.5 overflow-x-auto text-[.75rem] leading-relaxed"><code>' + code.trim() + '</code></pre>');
+  html = html.replace(/`([^`]+)`/g, '<code class="bg-surface-800/80 text-brand-300 px-1.5 py-0.5 rounded text-[.75rem]">$1</code>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
+  html = html.replace(/^[-•] (.+)/gm, '<span class="flex gap-2 items-start"><span class="text-brand-400 mt-0.5">&#8226;</span><span>$1</span></span>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+// ── Voice ────────────────────────────────────────────────────────────────────
+let _mediaRecorder = null, _audioChunks = [], _micActive = false;
+function toggleMic() {
+  if (_micActive) { stopMic(); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    _micActive = true; document.getElementById('mic-btn').classList.add('!bg-red-600', '!text-white');
+    _audioChunks = [];
+    _mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+    _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) _audioChunks.push(e.data); };
+    _mediaRecorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); transcribeAudio(new Blob(_audioChunks, { type: 'audio/webm' })); };
+    _mediaRecorder.start();
+  }).catch(() => alert('Microphone access denied.'));
+}
+function stopMic() { _micActive = false; document.getElementById('mic-btn').classList.remove('!bg-red-600', '!text-white'); if (_mediaRecorder && _mediaRecorder.state !== 'inactive') _mediaRecorder.stop(); }
+async function transcribeAudio(blob) {
+  try {
+    const resp = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: blob });
+    const data = await resp.json();
+    if (data.ok && data.transcript) { const i = document.getElementById('chat-input'); i.value = (i.value ? i.value + ' ' : '') + data.transcript; i.focus(); }
+  } catch (e) { console.error('Transcribe error:', e); }
+}
+
+// ── Image / Chat form ────────────────────────────────────────────────────────
+let _pendingImage = null;
+function handleImageSelect(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { _pendingImage = reader.result; document.getElementById('image-preview-img').src = _pendingImage; document.getElementById('image-preview').classList.remove('hidden'); };
+  reader.readAsDataURL(file); e.target.value = '';
+}
+function clearImageAttachment() { _pendingImage = null; document.getElementById('image-preview').classList.add('hidden'); }
+
+document.getElementById('chat-input').addEventListener('paste', (e) => {
+  const items = e.clipboardData?.items; if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const reader = new FileReader();
+      reader.onload = () => { _pendingImage = reader.result; document.getElementById('image-preview-img').src = _pendingImage; document.getElementById('image-preview').classList.remove('hidden'); };
+      reader.readAsDataURL(item.getAsFile()); break;
+    }
+  }
+});
+
+document.getElementById('chat-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if ((!msg && !_pendingImage) || chatWaiting || !ws || ws.readyState !== WebSocket.OPEN) return;
+  addMessage('user', msg || '(image)');
+  if (_pendingImage) { ws.send(JSON.stringify({ message: msg || 'What is in this image?', image: _pendingImage })); clearImageAttachment(); }
+  else ws.send(JSON.stringify({ message: msg }));
+  input.value = '';
+  chatWaiting = true;
+  document.getElementById('chat-send').disabled = true;
+  document.getElementById('chat-input').disabled = true;
+});
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function fmtMoney(v) { if (v == null) return '--'; return '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+switchTab('portfolio');
+connectWebSocket();
+</script>
+</body>
+</html>

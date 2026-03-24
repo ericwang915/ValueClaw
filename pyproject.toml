@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "value_claw"
+version = "0.6.6"
+description = "OpenClaw reimagined in pure Python — autonomous AI agent with memory, RAG, skills, web dashboard, and multi-channel support."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Eric Wang", email = "wangchen2007915@gmail.com"},
+]
+keywords = ["llm", "agent", "ai", "autonomous", "memory", "rag", "skills", "telegram", "discord", "chatbot", "framework", "portfolio", "investing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "openai",
+    "anthropic",
+    "google-generativeai",
+    "python-telegram-bot[job-queue]>=20.0",
+    "discord.py>=2.3",
+    "apscheduler>=3.10",
+    "pyyaml>=6.0",
+    "prefect>=3.0",
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.20",
+    "httpx>=0.24",
+    "tavily-python",
+    "rank-bm25>=0.2",
+    "numpy>=1.24",
+    "scikit-learn>=1.3",
+    "beautifulsoup4",
+    "requests",
+    "yfinance>=0.2.31",
+]
+
+[project.scripts]
+value_claw = "value_claw.main:main"
+
+[project.urls]
+Homepage = "https://github.com/ericwang915/ValueClaw"
+Documentation = "https://github.com/ericwang915/ValueClaw#readme"
+Repository = "https://github.com/ericwang915/ValueClaw"
+Issues = "https://github.com/ericwang915/ValueClaw/issues"
+
+[tool.setuptools.packages.find]
+include = ["value_claw*"]
+
+[tool.setuptools.package-data]
+value_claw = [
+    "templates/**/*.py",
+    "templates/**/*.sh",
+    "templates/**/*.yaml",
+    "templates/**/*.md",
+    "web/static/**/*",
+]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["__pycache__", "*.pyc", "*.pyo"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
