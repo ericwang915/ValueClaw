@@ -198,7 +198,25 @@ Environment variables (e.g. `DEEPSEEK_API_KEY`, `TAVILY_API_KEY`) override JSON 
 
 ---
 
-## Skills Pipeline
+## Built-in Skills & Extensions
+
+ValueClaw comes pre-loaded with a powerful suite of skills designed specifically for deep financial research and internet investigation. 
+
+### 🌐 Web Capabilities
+- **`perplexity_search`**: Deep AI-synthesized internet research using the Perplexity `sonar-pro` API. Excellent for multi-source financial reporting.
+- **`brave_search`**: Fast, unbiased, and privacy-respecting programmatic web searches via the Brave Search API.
+- **`tavily_search`**: High-speed AI-optimized search designed for LLM agents.
+- **`summarize`**: Instantly extract, read, and summarize long-form articles from any URL.
+
+### 📈 Investment Capabilities
+- **Market Data Providers**: Integrations with `yahoo-finance`, `tushare-finance` (China A-Shares), and `akshare_data` for global price, volume, and tick data.
+- **Corporate Fundamentals**: `sec_filings` to fetch, read, and analyze 10-K/10-Q reports from EDGAR, paired with `stock_fundamentals` for deep financial ratio breakdowns.
+- **Quantitative & Technical**: Modules like `technical_analysis`, `a-stock-analysis`, and `market-environment-analysis` compute indicators (RSI, MACD, Bollinger Bands) and assess macroeconomic trends.
+- **News & Sentiment**: `finance-news` and `twitter-news` APIs tap into real-time market sentiment and breaking headlines.
+- **Strategy & Coaching**: `trading-coach` and `etf-assistant` offer AI-driven guidance on portfolio allocation and backtesting strategies.
+- **Execution**: The `interactive-brokers` skill provides an extensible foundation for paper trading and live account lookups.
+
+### Progressive Loading Pipeline
 
 Expand your analyst's capabilities by writing custom tools. `value_claw` loads skills progressively:
 
@@ -218,6 +236,7 @@ description: Fetch and analyze 10-K and 10-Q reports from SEC EDGAR.
 ## Instructions
 Run `python {skill_path}/fetch_edgar.py "TICKER"`
 ```
+
 
 ---
 
