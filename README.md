@@ -2,7 +2,7 @@
   <img src="assets/logo.png" alt="ValueClaw" width="160">
 </p>
 
-<h1 align="center">ValueClaw 🦅</h1>
+<h1 align="center">ValueClaw</h1>
 
 <p align="center">
   <strong>Your Autonomous AI Investment Analyst — Built entirely in Python.</strong><br>
