@@ -23,9 +23,11 @@ How it works
 
 Token estimation
 ----------------
-We don't bundle a tokeniser, so we use a conservative character-based
-approximation: 1 token ≈ 4 characters.  This is good enough for triggering
-auto-compaction; the actual model enforces the hard limit.
+Uses tiktoken when available for accurate counts; otherwise falls back to a
+heuristic that accounts for CJK characters (which typically map to 1–2 tokens
+each, unlike Latin text at ~4 chars/token).  This matters for Chinese/Japanese/
+Korean-heavy conversations where the old flat 4-chars/token rule significantly
+underestimates actual token usage.
 """
 
 from __future__ import annotations
@@ -42,9 +44,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-CHARS_PER_TOKEN = 4
-DEFAULT_AUTO_THRESHOLD_TOKENS = 6000   # trigger auto-compaction at ~6k tokens
-DEFAULT_RECENT_KEEP = 6                # keep last N chat messages verbatim
+CHARS_PER_TOKEN_LATIN = 4    # ~4 chars per token for Latin/ASCII text
+CHARS_PER_TOKEN_CJK = 1.5    # ~1.5 chars per token for CJK characters
+DEFAULT_AUTO_THRESHOLD_TOKENS = 12000  # trigger auto-compaction at ~12k tokens
+DEFAULT_RECENT_KEEP = 6               # keep last N chat messages verbatim
+
+
 def _compaction_log_file() -> str:
     from .. import config as _cfg
     return os.path.join(str(_cfg.VALUE_CLAW_HOME), "context", "compaction", "history.jsonl")
@@ -52,13 +57,75 @@ def _compaction_log_file() -> str:
 
 COMPACTION_LOG_FILE = None  # resolved lazily
 
+# ── Tiktoken (optional, for accurate token counting) ─────────────────────────
+
+_tiktoken_enc = None
+_tiktoken_checked = False
+
+
+def _get_tiktoken():
+    """Lazy-load tiktoken encoder. Returns None if tiktoken is not installed."""
+    global _tiktoken_enc, _tiktoken_checked
+    if _tiktoken_checked:
+        return _tiktoken_enc
+    _tiktoken_checked = True
+    try:
+        import tiktoken
+        _tiktoken_enc = tiktoken.get_encoding("cl100k_base")
+        logger.debug("[Compaction] Using tiktoken (cl100k_base) for token estimation.")
+    except ImportError:
+        logger.debug("[Compaction] tiktoken not installed; using heuristic token estimation.")
+    return _tiktoken_enc
+
+
+def _is_cjk(char: str) -> bool:
+    """Return True if *char* is a CJK ideograph or fullwidth character."""
+    cp = ord(char)
+    return (
+        0x4E00 <= cp <= 0x9FFF        # CJK Unified Ideographs
+        or 0x3400 <= cp <= 0x4DBF     # CJK Extension A
+        or 0x20000 <= cp <= 0x2A6DF   # CJK Extension B
+        or 0xF900 <= cp <= 0xFAFF     # CJK Compatibility Ideographs
+        or 0x3000 <= cp <= 0x303F     # CJK Punctuation
+        or 0xFF00 <= cp <= 0xFFEF     # Fullwidth Forms
+        or 0x3040 <= cp <= 0x30FF     # Hiragana + Katakana
+        or 0xAC00 <= cp <= 0xD7AF     # Korean Hangul
+    )
+
 
 # ── Token estimation ──────────────────────────────────────────────────────────
 
 def estimate_tokens(messages: list[dict]) -> int:
-    """Rough character-based token estimate for a list of messages."""
-    total_chars = sum(len(str(m.get("content") or "")) for m in messages)
-    return total_chars // CHARS_PER_TOKEN
+    """Estimate total tokens for a list of messages.
+
+    Strategy (in priority order):
+      1. tiktoken (accurate) — if installed
+      2. CJK-aware heuristic — counts CJK and Latin chars separately
+
+    The heuristic treats CJK characters as ~1.5 chars/token and Latin
+    characters as ~4 chars/token, which is much more accurate for mixed
+    Chinese/English conversations.
+    """
+    full_text = "".join(str(m.get("content") or "") for m in messages)
+
+    # Try tiktoken first (accurate)
+    enc = _get_tiktoken()
+    if enc is not None:
+        try:
+            return len(enc.encode(full_text))
+        except Exception:
+            pass  # fall through to heuristic
+
+    # Heuristic: count CJK and Latin chars separately
+    cjk_chars = 0
+    latin_chars = 0
+    for ch in full_text:
+        if _is_cjk(ch):
+            cjk_chars += 1
+        else:
+            latin_chars += 1
+
+    return int(cjk_chars / CHARS_PER_TOKEN_CJK + latin_chars / CHARS_PER_TOKEN_LATIN)
 
 
 # ── JSONL persistence ─────────────────────────────────────────────────────────
@@ -94,6 +161,78 @@ def messages_to_text(messages: list[dict]) -> str:
     return "\n".join(lines)
 
 
+# ── JSON parsing helpers ──────────────────────────────────────────────────────
+
+import re as _re
+
+_FENCE_RE = _re.compile(r"```(?:json)?\s*\n?(.*?)```", _re.DOTALL)
+_TRAILING_COMMA_RE = _re.compile(r",\s*([}\]])")
+
+
+def _parse_json_lenient(raw: str) -> list[dict]:
+    """Parse a JSON array from LLM output with maximum tolerance.
+
+    Handles common LLM quirks:
+      - Markdown code fences (```json ... ```)
+      - Leading/trailing prose around the JSON
+      - Trailing commas inside objects/arrays
+      - Single quotes instead of double quotes
+      - Unquoted keys
+      - Empty or nonsense responses
+
+    Returns a list of dicts on success, or [] on any failure.
+    """
+    if not raw or not raw.strip():
+        return []
+
+    raw = raw.strip()
+
+    # 1. Extract from markdown fences
+    fence_match = _FENCE_RE.search(raw)
+    if fence_match:
+        raw = fence_match.group(1).strip()
+    else:
+        # Strip leading/trailing fences without regex (simple case)
+        if raw.startswith("```"):
+            raw = "\n".join(raw.split("\n")[1:])
+        if raw.endswith("```"):
+            raw = raw[: raw.rfind("```")]
+        raw = raw.strip()
+
+    # 2. Find the JSON array boundaries (skip surrounding prose)
+    start = raw.find("[")
+    end = raw.rfind("]")
+    if start != -1 and end != -1 and end > start:
+        raw = raw[start : end + 1]
+
+    # 3. Try strict parse first
+    try:
+        result = json.loads(raw)
+        return result if isinstance(result, list) else [result]
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # 4. Fix trailing commas and retry
+    try:
+        fixed = _TRAILING_COMMA_RE.sub(r"\1", raw)
+        result = json.loads(fixed)
+        return result if isinstance(result, list) else [result]
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # 5. Try replacing single quotes with double quotes
+    try:
+        fixed = raw.replace("'", '"')
+        fixed = _TRAILING_COMMA_RE.sub(r"\1", fixed)
+        result = json.loads(fixed)
+        return result if isinstance(result, list) else [result]
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    logger.debug("[Compaction] Could not parse JSON from LLM output: %s", raw[:200])
+    return []
+
+
 # ── Memory flush ──────────────────────────────────────────────────────────────
 
 def memory_flush(
@@ -127,15 +266,11 @@ def memory_flush(
             tool_choice="none",
         )
         raw = response.choices[0].message.content or "[]"
-        # Strip markdown fences if present
-        raw = raw.strip()
-        if raw.startswith("```"):
-            raw = "\n".join(raw.split("\n")[1:])
-        if raw.endswith("```"):
-            raw = raw[: raw.rfind("```")]
-        facts: list[dict] = json.loads(raw)
+        facts = _parse_json_lenient(raw)
         saved = 0
         for fact in facts:
+            if not isinstance(fact, dict):
+                continue
             key = str(fact.get("key", "")).strip()
             value = str(fact.get("value", "")).strip()
             if key and value:

@@ -133,6 +133,60 @@ value_claw chat
 
 ---
 
+## 💼 Portfolio Management
+
+ValueClaw includes a built-in **paper trading & portfolio tracker** that lets you simulate investments or track real positions — all managed through the agent or the web dashboard.
+
+### Features
+- **Dual-mode tracking**: Switch between `simulate` (paper trading) and `live` (real position tracking)
+- **Multiple portfolios**: Manage separate portfolios for different asset classes (e.g., `us-stocks`, `crypto`)
+- **Cash management**: Top up or withdraw cash with `/topup` and `/cashout`
+- **Trade logging**: Every buy/sell is recorded with timestamps, prices, and quantities
+- **Performance snapshots**: Take periodic snapshots to track portfolio value over time
+- **Strategy engine**: Create automated investment strategies with approval workflows
+
+### Telegram Commands
+```
+/portfolio              — View portfolio status (all portfolios & modes)
+/portfolio us-stocks    — Switch active portfolio
+/mode live              — Switch to live tracking mode
+/mode simulate          — Switch to paper trading mode
+/topup 10000            — Add $10,000 cash to active portfolio
+/cashout 5000           — Withdraw $5,000 from active portfolio
+```
+
+### Web Dashboard API
+The web dashboard at `http://localhost:7788/dashboard` provides a full portfolio management interface:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/portfolios/status` | GET | Overview of all portfolios |
+| `/api/portfolios/buy` | POST | Execute a buy order |
+| `/api/portfolios/sell` | POST | Execute a sell order |
+| `/api/portfolios/{id}/trades` | GET | Trade history |
+| `/api/portfolios/{id}/performance` | GET | Performance analytics |
+| `/api/portfolios/{id}/snapshots` | GET | Historical value snapshots |
+| `/api/strategies` | GET/POST | List or create trading strategies |
+| `/api/strategies/{id}/start` | POST | Activate a strategy |
+
+### Natural Language Trading
+You can also manage your portfolio through natural conversation:
+```
+You: Buy 100 shares of AAPL at market price
+Bot: 📊 Order executed: BUY 100 AAPL @ $251.49
+     Portfolio: us-stocks (simulate)
+     Cash remaining: $74,851.00
+
+You: What's my portfolio performance this month?
+Bot: 📈 Portfolio Performance (March 2026)
+     Total Value: $127,450.00 (+3.2%)
+     ...
+```
+
+> **Note:** ValueClaw does NOT connect to real brokerages. "Live mode" tracks positions you manually record. For actual trade execution, see the roadmap for upcoming Alpaca/IBKR integration.
+
+---
+
 ## 🛠️ Configuration
 
 All system properties, API keys, and model preferences are handled natively in `value_claw.json`. See the [`value_claw.example.json`](value_claw.example.json) to manually configure providers like Brave, Perplexity, or Telegram bots.

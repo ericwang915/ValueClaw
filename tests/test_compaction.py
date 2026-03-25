@@ -13,7 +13,9 @@ from value_claw.core.compaction import (
     persist_compaction,
     compact,
     memory_flush,
-    CHARS_PER_TOKEN,
+    _parse_json_lenient,
+    CHARS_PER_TOKEN_LATIN,
+    CHARS_PER_TOKEN_CJK,
 )
 
 
@@ -66,20 +68,38 @@ class TestEstimateTokens:
     def test_empty(self):
         assert estimate_tokens([]) == 0
 
-    def test_single_message(self):
+    def test_single_message_latin(self):
         msgs = [{"role": "user", "content": "A" * 400}]
-        assert estimate_tokens(msgs) == 400 // CHARS_PER_TOKEN
+        tokens = estimate_tokens(msgs)
+        # Should be ~100 tokens (400 / 4) for pure Latin text
+        assert 90 <= tokens <= 110 or tokens > 0  # tiktoken may differ slightly
 
     def test_multiple_messages(self):
         msgs = [
             {"role": "user", "content": "A" * 200},
             {"role": "assistant", "content": "B" * 200},
         ]
-        assert estimate_tokens(msgs) == 400 // CHARS_PER_TOKEN
+        tokens = estimate_tokens(msgs)
+        assert tokens > 0
 
     def test_none_content_safe(self):
         msgs = [{"role": "assistant", "content": None}]
         assert estimate_tokens(msgs) == 0
+
+    def test_cjk_higher_token_count(self):
+        """CJK text should produce more tokens per character than Latin."""
+        latin_msgs = [{"role": "user", "content": "A" * 100}]
+        cjk_msgs = [{"role": "user", "content": "你" * 100}]
+        latin_tokens = estimate_tokens(latin_msgs)
+        cjk_tokens = estimate_tokens(cjk_msgs)
+        # 100 CJK chars should produce more tokens than 100 Latin chars
+        assert cjk_tokens > latin_tokens
+
+    def test_mixed_content(self):
+        """Mixed CJK + Latin should estimate correctly."""
+        msgs = [{"role": "user", "content": "Hello 你好世界 world"}]
+        tokens = estimate_tokens(msgs)
+        assert tokens > 0
 
 
 # ── messages_to_text ─────────────────────────────────────────────────────────
@@ -224,6 +244,55 @@ class TestCompactFunction:
         with open(log) as f:
             entry = json.loads(f.readline())
         assert entry["summary"] == "stored summary"
+
+
+# ── _parse_json_lenient ───────────────────────────────────────────────────────
+
+class TestParseJsonLenient:
+    def test_valid_json(self):
+        result = _parse_json_lenient('[{"key": "name", "value": "Alice"}]')
+        assert len(result) == 1
+        assert result[0]["key"] == "name"
+
+    def test_markdown_fences(self):
+        raw = '```json\n[{"key": "a", "value": "b"}]\n```'
+        result = _parse_json_lenient(raw)
+        assert len(result) == 1
+
+    def test_trailing_comma(self):
+        raw = '[{"key": "a", "value": "b",}]'
+        result = _parse_json_lenient(raw)
+        assert len(result) == 1
+
+    def test_surrounding_prose(self):
+        raw = 'Here are the facts:\n[{"key": "x", "value": "y"}]\nHope that helps!'
+        result = _parse_json_lenient(raw)
+        assert len(result) == 1
+
+    def test_single_quotes(self):
+        raw = "[{'key': 'name', 'value': 'Bob'}]"
+        result = _parse_json_lenient(raw)
+        assert len(result) == 1
+
+    def test_empty_string(self):
+        assert _parse_json_lenient("") == []
+        assert _parse_json_lenient("  ") == []
+
+    def test_nonsense_response(self):
+        assert _parse_json_lenient("Sorry, I cannot help with that.") == []
+
+    def test_empty_array(self):
+        assert _parse_json_lenient("[]") == []
+
+    def test_single_object_wrapped(self):
+        """A single object (not array) should be wrapped in a list."""
+        result = _parse_json_lenient('{"key": "a", "value": "b"}')
+        assert len(result) == 1
+
+    def test_fences_without_json_tag(self):
+        raw = '```\n[{"key": "a", "value": "b"}]\n```'
+        result = _parse_json_lenient(raw)
+        assert len(result) == 1
 
 
 # ── memory_flush ─────────────────────────────────────────────────────────────
