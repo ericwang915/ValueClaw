@@ -884,10 +884,28 @@ function scrollChat() { const c = document.getElementById('chat-messages'); requ
 
 function renderMarkdown(text) {
   let html = esc(text);
+  // Code blocks
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => '<pre class="bg-surface-950 border border-surface-700/50 rounded-lg p-3.5 my-2.5 overflow-x-auto text-[.75rem] leading-relaxed"><code>' + code.trim() + '</code></pre>');
+  // Inline code
   html = html.replace(/`([^`]+)`/g, '<code class="bg-surface-800/80 text-brand-300 px-1.5 py-0.5 rounded text-[.75rem]">$1</code>');
+  // Headers (### → h4, ## → h3)
+  html = html.replace(/^### (.+)/gm, '<h4 class="text-brand-300 font-semibold text-sm mt-4 mb-1.5">$1</h4>');
+  html = html.replace(/^## (.+)/gm, '<h3 class="text-white font-bold text-base mt-5 mb-2 pb-1 border-b border-surface-700/50">$1</h3>');
+  // Horizontal rules
+  html = html.replace(/^---+$/gm, '<hr class="border-surface-700/50 my-3">');
+  // Bold
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
-  html = html.replace(/^[-•] (.+)/gm, '<span class="flex gap-2 items-start"><span class="text-brand-400 mt-0.5">&#8226;</span><span>$1</span></span>');
+  // Italic
+  html = html.replace(/\*(.+?)\*/g, '<em class="text-surface-300">$1</em>');
+  // Numbered lists
+  html = html.replace(/^\d+\. (.+)/gm, '<span class="flex gap-2 items-start ml-1"><span class="text-brand-400 font-mono text-xs min-w-[1.2rem]">•</span><span>$1</span></span>');
+  // Bullet points (-, •, *)
+  html = html.replace(/^[-•\*] (.+)/gm, '<span class="flex gap-2 items-start ml-1"><span class="text-brand-400 mt-0.5">&#8226;</span><span>$1</span></span>');
+  // Emoji-led lines (📊, 💡, ⚠️, etc.) — add subtle left border for visual grouping
+  html = html.replace(/^((?:[\u{1F300}-\u{1FAD6}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]).+)/gmu, '<div class="pl-2 border-l-2 border-surface-700/30 my-0.5">$1</div>');
+  // Double newlines → paragraph spacing
+  html = html.replace(/\n\n/g, '<div class="h-3"></div>');
+  // Single newlines → line breaks
   html = html.replace(/\n/g, '<br>');
   return html;
 }

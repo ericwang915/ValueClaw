@@ -618,11 +618,18 @@ _LEAKED_TOOL_RE = re.compile(
 )
 
 
-_PROGRESS_LINE_RE = re.compile(r'\n\n.{0,60}[：:]\s*\n\n')
+_PROGRESS_LINE_RE = re.compile(
+    r'\n\n(?:Searching|Fetching|Loading|Analyzing|Processing|Looking up'
+    r'|Checking|Retrieving|Calculating|Running)[^.\n]{0,50}[.…：:]\s*\n\n',
+)
 
 
 def _clean_response(text: str) -> str:
-    """Strip leaked tool-call XML/DSML markup and excess whitespace."""
+    """Strip leaked tool-call XML/DSML markup, progress lines, and excess whitespace.
+
+    Only removes lines that look like progress narration (e.g. "Searching for...").
+    Preserves legitimate headers and content with colons.
+    """
     text = _LEAKED_TOOL_RE.sub('', text)
     text = re.sub(r'\n{3,}', '\n\n', text)
     for _ in range(10):
