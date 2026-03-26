@@ -70,6 +70,20 @@ ValueClaw's true power lies in its extensible **Financial Skills Engine**. Out o
 - **`trading-coach`**: Acts as your personal quant strategist. Submit a portfolio hypothesis, and the agent will backtest the logic, pointing out historical flaws and risk exposures.
 - **`etf-assistant`**: Recommends ETF allocations based on desired thematic exposure (e.g., "Give me a low-volatility semiconductor basket").
 
+### 6. Market Intelligence & Sentiment
+- **`market-sentiment`**: Real-time sentiment dashboard — CNN Fear & Greed Index, VIX analysis, put/call ratio, market breadth, composite score.
+- **`economic-calendar`**: Upcoming macro events (FOMC, CPI, NFP, PMI, GDP) with impact levels, forecasts, and country filters.
+- **`insider-tracker`**: SEC Form 4 insider trading tracker with cluster buying detection and large trade filtering.
+- **`institutional-holdings`**: 13F institutional holders, ownership concentration (HHI index), fund-level tracking.
+
+### 7. Options & Risk Analytics
+- **`options-flow`**: Options chain analysis, unusual activity detection (volume > 5x OI), max pain calculation, IV rank, put/call ratios.
+- **`risk-analytics`**: Portfolio risk toolkit — correlation matrix, VaR (95%/99%), Sharpe/Sortino/Calmar ratios, max drawdown, stress testing.
+- **`earnings-tracker`**: Earnings calendar, EPS surprise history, beat/miss rates, post-earnings drift analysis.
+
+### 8. Crypto & DeFi
+- **`crypto-onchain`**: CoinGecko prices, crypto Fear & Greed Index, trending coins, historical charts, DeFi TVL overview via DeFi Llama.
+
 ---
 
 ## 🌐 Web & Deep Research Capabilities
@@ -88,8 +102,35 @@ When financial data platforms fall short, ValueClaw takes to the open web.
 Install the package directly via pip (Requires Python 3.10+):
 
 ```bash
-pip install value_claw
+# Core only (minimal dependencies)
+pip install valueclaw
+
+# With specific extras
+pip install valueclaw[telegram]          # + Telegram bot
+pip install valueclaw[web]               # + Web dashboard
+pip install valueclaw[telegram,web]      # + both
+
+# Everything (all providers, channels, scheduler, etc.)
+pip install valueclaw[all]
 ```
+
+<details>
+<summary>📦 Available extras</summary>
+
+| Extra | What it adds |
+|-------|-------------|
+| `anthropic` | Claude LLM provider |
+| `gemini` | Google Gemini provider |
+| `telegram` | Telegram bot channel |
+| `discord` | Discord bot channel |
+| `web` | FastAPI web dashboard |
+| `scheduler` | Prefect cron scheduler |
+| `search` | Tavily web search |
+| `dense` | Dense embedding retrieval (scikit-learn) |
+| `tokens` | Accurate token counting (tiktoken) |
+| `all` | Everything above |
+
+</details>
 
 ### 2. Initialization Wizard
 Set up your preferred LLM provider (e.g., DeepSeek, OpenAI) and API keys securely:
