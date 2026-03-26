@@ -151,7 +151,7 @@ def format_financials(data: dict, company: str, symbol: str) -> str:
         f"{'═' * 60}",
         f"  EDGAR XBRL Financials: {company} ({symbol.upper()})",
         f"{'─' * 60}",
-        f"  (Source: SEC EDGAR structured data — official filings)",
+        "  (Source: SEC EDGAR structured data — official filings)",
         f"{'═' * 60}",
     ]
     for label, records in data.items():

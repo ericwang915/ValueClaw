@@ -36,7 +36,7 @@ def translate_headlines(headlines: list[str], lang: str = "de") -> list[str]:
     if not headlines:
         return []
 
-    prompt = f"""Translate these English headlines to German.
+    prompt = """Translate these English headlines to German.
 Return ONLY a JSON array of strings in the same order.
 Example: ["Übersetzung 1", "Übersetzung 2"]
 Do not add commentary.
@@ -100,7 +100,7 @@ Headlines:
     except json.JSONDecodeError as e:
         print(f"⚠️ JSON parse error: {e}", file=sys.stderr)
 
-    print(f"⚠️ Translation failed, using original headlines", file=sys.stderr)
+    print("⚠️ Translation failed, using original headlines", file=sys.stderr)
     return headlines
 
 
@@ -122,7 +122,7 @@ def main():
 
     # Read JSON
     try:
-        with open(args.json_file, 'r') as f:
+        with open(args.json_file) as f:
             data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         print(f"❌ Error reading {args.json_file}: {e}", file=sys.stderr)

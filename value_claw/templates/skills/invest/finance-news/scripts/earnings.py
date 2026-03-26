@@ -23,8 +23,7 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from urllib.request import urlopen, Request
-from urllib.error import URLError, HTTPError
+from urllib.request import Request, urlopen
 
 # Paths
 SCRIPT_DIR = Path(__file__).parent
@@ -63,7 +62,7 @@ def load_portfolio() -> list[dict]:
     """Load portfolio from CSV."""
     if not PORTFOLIO_FILE.exists():
         return []
-    with open(PORTFOLIO_FILE, 'r') as f:
+    with open(PORTFOLIO_FILE) as f:
         reader = csv.DictReader(f)
         return list(reader)
 
@@ -120,17 +119,17 @@ def fetch_all_earnings_finnhub(days_ahead: int = 60) -> dict:
     finnhub_key = get_finnhub_key()
     if not finnhub_key:
         return {}
-    
+
     from_date = datetime.now().strftime("%Y-%m-%d")
     to_date = (datetime.now() + timedelta(days=days_ahead)).strftime("%Y-%m-%d")
-    
+
     url = f"https://finnhub.io/api/v1/calendar/earnings?from={from_date}&to={to_date}&token={finnhub_key}"
-    
+
     try:
         req = Request(url, headers={"User-Agent": "finance-news/1.0"})
         with urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            
+
             earnings_by_symbol = {}
             for entry in data.get("earningsCalendar", []):
                 symbol = entry.get("symbol")
@@ -155,17 +154,17 @@ def normalize_ticker_for_lookup(ticker: str) -> list[str]:
     Returns list of possible formats to try.
     """
     variants = [ticker]
-    
+
     # Japanese stocks: 6857.T -> try 6857
     if ticker.endswith('.T'):
         base = ticker.replace('.T', '')
         variants.extend([base, f"{base}.T"])
-    
+
     # Singapore stocks: D05.SI -> try D05
     elif ticker.endswith('.SI'):
         base = ticker.replace('.SI', '')
         variants.extend([base, f"{base}.SI"])
-    
+
     return variants
 
 
@@ -176,21 +175,21 @@ def fetch_earnings_for_portfolio(portfolio: list[dict]) -> dict:
     """
     # Get all earnings for next 60 days
     all_earnings = fetch_all_earnings_finnhub(days_ahead=60)
-    
+
     if not all_earnings:
         return {}
-    
+
     # Match portfolio tickers to earnings data
     results = {}
     for stock in portfolio:
         ticker = stock["symbol"]
         variants = normalize_ticker_for_lookup(ticker)
-        
+
         for variant in variants:
             if variant in all_earnings:
                 results[ticker] = all_earnings[variant]
                 break
-    
+
     return results
 
 
@@ -200,9 +199,9 @@ def refresh_earnings(portfolio: list[dict], force: bool = False) -> dict:
     if not finnhub_key:
         print("❌ FINNHUB_API_KEY not found", file=sys.stderr)
         return {}
-    
+
     cache = load_earnings_cache()
-    
+
     # Check if cache is fresh (< 6 hours old)
     if not force and cache.get("last_updated"):
         try:
@@ -212,12 +211,12 @@ def refresh_earnings(portfolio: list[dict], force: bool = False) -> dict:
                 return cache
         except Exception:
             pass
-    
-    print(f"🔄 Fetching earnings calendar from Finnhub...")
-    
+
+    print("🔄 Fetching earnings calendar from Finnhub...")
+
     # Use bulk fetch - much more efficient
     earnings = fetch_earnings_for_portfolio(portfolio)
-    
+
     # Merge manual earnings (for JP stocks not in Finnhub)
     manual = load_manual_earnings()
     if manual:
@@ -225,21 +224,21 @@ def refresh_earnings(portfolio: list[dict], force: bool = False) -> dict:
         for ticker, data in manual.items():
             if ticker not in earnings:  # Manual data fills gaps
                 earnings[ticker] = data
-    
+
     found = len(earnings)
     total = len(portfolio)
     print(f"✅ Found earnings data for {found}/{total} stocks")
-    
+
     if earnings:
         for ticker, data in sorted(earnings.items(), key=lambda x: x[1].get("date", "")):
             print(f"  • {ticker}: {data.get('date', '?')}")
-    
+
     cache = {
         "last_updated": datetime.now().isoformat(),
         "earnings": earnings
     }
     save_earnings_cache(cache)
-    
+
     return cache
 
 
@@ -249,30 +248,30 @@ def list_earnings(args):
     if not portfolio:
         print("📂 Portfolio empty")
         return
-    
+
     cache = refresh_earnings(portfolio, force=args.refresh)
     earnings = cache.get("earnings", {})
-    
+
     if not earnings:
         print("\n❌ No earnings dates found")
         return
-    
+
     # Sort by date
     sorted_earnings = sorted(
         [(ticker, data) for ticker, data in earnings.items() if data.get("date")],
         key=lambda x: x[1]["date"]
     )
-    
+
     print(f"\n📅 Upcoming Earnings ({len(sorted_earnings)} stocks)\n")
-    
+
     today = datetime.now().date()
-    
+
     for ticker, data in sorted_earnings:
         date_str = data["date"]
         try:
             ed = datetime.strptime(date_str, "%Y-%m-%d").date()
             days_until = (ed - today).days
-            
+
             # Emoji based on timing
             if days_until < 0:
                 emoji = "✅"  # Past
@@ -289,27 +288,27 @@ def list_earnings(args):
             else:
                 emoji = "⚪"  # Later
                 timing = f"in {days_until}d"
-            
+
             # Time of day
             time_str = ""
             if data.get("time") == "bmo":
                 time_str = " (pre-market)"
             elif data.get("time") == "amc":
                 time_str = " (after-close)"
-            
+
             # EPS estimate
             eps_str = ""
             if data.get("eps_estimate"):
                 eps_str = f" | Est: ${data['eps_estimate']:.2f}"
-            
+
             # Stock name from portfolio
             stock_name = next((s["name"] for s in portfolio if s["symbol"] == ticker), ticker)
-            
+
             print(f"{emoji} {date_str} ({timing}): **{ticker}** — {stock_name}{time_str}{eps_str}")
-            
+
         except ValueError:
             print(f"⚪ {date_str}: {ticker}")
-    
+
     print()
 
 
@@ -384,7 +383,7 @@ def check_earnings(args):
                     week_list.append(entry)
         except ValueError:
             continue
-    
+
     # Handle JSON output
     if getattr(args, 'json', False):
         if week_only:
@@ -500,8 +499,8 @@ def check_earnings(args):
 
 def get_briefing_section() -> str:
     """Get earnings section for daily briefing (called by briefing.py)."""
-    from io import StringIO
     import contextlib
+    from io import StringIO
 
     # Capture check output
     class Args:
@@ -583,12 +582,12 @@ def get_analyst_ratings(symbols: list[str]) -> list[dict]:
 def main():
     parser = argparse.ArgumentParser(description="Earnings Calendar Tracker")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
-    
+
     # list command
     list_parser = subparsers.add_parser("list", help="List all upcoming earnings")
     list_parser.add_argument("--refresh", "-r", action="store_true", help="Force refresh")
     list_parser.set_defaults(func=list_earnings)
-    
+
     # check command
     check_parser = subparsers.add_parser("check", help="Check today/this week")
     check_parser.add_argument("--verbose", "-v", action="store_true")
@@ -596,17 +595,17 @@ def main():
     check_parser.add_argument("--lang", default="en", help="Output language (en, de)")
     check_parser.add_argument("--week", action="store_true", help="Show full week preview (for weekly cron)")
     check_parser.set_defaults(func=check_earnings)
-    
+
     # refresh command
     refresh_parser = subparsers.add_parser("refresh", help="Force refresh all data")
     refresh_parser.set_defaults(func=lambda a: refresh_earnings(load_portfolio(), force=True))
-    
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return
-    
+
     args.func(args)
 
 

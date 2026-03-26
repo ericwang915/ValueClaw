@@ -218,7 +218,7 @@ class TelegramBot:
 
         status = get_status()
         lines = [
-            f"\U0001f4bc Portfolio Status",
+            "\U0001f4bc Portfolio Status",
             f"  Active: {status['active_portfolio']}",
             f"  Mode: {status['active_mode']}",
             "",

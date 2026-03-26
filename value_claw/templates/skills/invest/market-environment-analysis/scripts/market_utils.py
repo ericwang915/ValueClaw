@@ -6,7 +6,6 @@ This script provides common functions for market analysis report creation.
 """
 
 from datetime import datetime, timedelta
-import json
 
 
 def get_market_session_times():
@@ -39,15 +38,15 @@ def calculate_trading_days_to_event(event_date_str):
     # Simple version: excludes weekends (doesn't consider holidays)
     event_date = datetime.strptime(event_date_str, "%Y-%m-%d")
     today = datetime.now().date()
-    
+
     trading_days = 0
     current = today
-    
+
     while current < event_date.date():
         if current.weekday() < 5:  # Monday to Friday
             trading_days += 1
         current += timedelta(days=1)
-    
+
     return trading_days
 
 
@@ -77,9 +76,9 @@ def get_market_status():
     """Determine current market status"""
     now = datetime.now()
     hour = now.hour
-    
+
     status = []
-    
+
     # Simple market open determination (timezone not considered)
     if 9 <= hour < 15:
         status.append("🟢 Tokyo Market: Trading")
@@ -87,12 +86,12 @@ def get_market_status():
         status.append("🔴 Tokyo Market: Closed")
     else:
         status.append("⏰ Tokyo Market: After hours")
-    
+
     if 21 <= hour or hour < 4:
         status.append("🟢 US Market: Trading (previous day)")
     else:
         status.append("🔴 US Market: Closed")
-    
+
     return "\n".join(status)
 
 

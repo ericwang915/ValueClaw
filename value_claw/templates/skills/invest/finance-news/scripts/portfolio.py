@@ -26,11 +26,11 @@ def validate_portfolio_csv(path: Path) -> tuple[bool, list[str]]:
         return True, warnings
 
     try:
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             # Check for encoding issues
-            content = f.read()
+            f.read()
 
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             reader = csv.DictReader(f)
 
             # Check required columns
@@ -77,7 +77,7 @@ def load_portfolio() -> list[dict]:
         return []
 
     try:
-        with open(PORTFOLIO_FILE, 'r', encoding='utf-8') as f:
+        with open(PORTFOLIO_FILE, encoding='utf-8') as f:
             reader = csv.DictReader(f)
 
             # Normalize data
@@ -114,7 +114,7 @@ def save_portfolio(portfolio: list[dict]):
     if not portfolio:
         PORTFOLIO_FILE.write_text("symbol,name,category,notes,type\n")
         return
-    
+
     with open(PORTFOLIO_FILE, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=['symbol', 'name', 'category', 'notes', 'type'])
         writer.writeheader()
@@ -124,13 +124,13 @@ def save_portfolio(portfolio: list[dict]):
 def list_portfolio(args):
     """List all stocks in portfolio."""
     portfolio = load_portfolio()
-    
+
     if not portfolio:
         print("📂 Portfolio is empty. Use 'portfolio add <SYMBOL>' to add stocks.")
         return
-    
+
     print(f"\n📊 Portfolio ({len(portfolio)} stocks)\n")
-    
+
     # Group by Type then Category
     by_type = {}
     for stock in portfolio:
@@ -138,7 +138,7 @@ def list_portfolio(args):
         if t not in by_type:
             by_type[t] = []
         by_type[t].append(stock)
-        
+
     for t, type_stocks in by_type.items():
         print(f"# {t}")
         categories = {}
@@ -147,7 +147,7 @@ def list_portfolio(args):
             if cat not in categories:
                 categories[cat] = []
             categories[cat].append(stock)
-        
+
         for cat, stocks in categories.items():
             print(f"### {cat}")
             for s in stocks:
@@ -159,12 +159,12 @@ def list_portfolio(args):
 def add_stock(args):
     """Add a stock to portfolio."""
     portfolio = load_portfolio()
-    
+
     # Check if already exists
     if any(s['symbol'].upper() == args.symbol.upper() for s in portfolio):
         print(f"⚠️ {args.symbol.upper()} already in portfolio")
         return
-    
+
     new_stock = {
         'symbol': args.symbol.upper(),
         'name': args.name or args.symbol.upper(),
@@ -172,7 +172,7 @@ def add_stock(args):
         'notes': args.notes or '',
         'type': args.type
     }
-    
+
     portfolio.append(new_stock)
     save_portfolio(portfolio)
     print(f"✅ Added {args.symbol.upper()} to portfolio ({args.type})")
@@ -181,14 +181,14 @@ def add_stock(args):
 def remove_stock(args):
     """Remove a stock from portfolio."""
     portfolio = load_portfolio()
-    
+
     original_len = len(portfolio)
     portfolio = [s for s in portfolio if s['symbol'].upper() != args.symbol.upper()]
-    
+
     if len(portfolio) == original_len:
         print(f"⚠️ {args.symbol.upper()} not found in portfolio")
         return
-    
+
     save_portfolio(portfolio)
     print(f"✅ Removed {args.symbol.upper()} from portfolio")
 
@@ -196,15 +196,15 @@ def remove_stock(args):
 def import_csv(args):
     """Import portfolio from external CSV."""
     import_path = Path(args.file)
-    
+
     if not import_path.exists():
         print(f"❌ File not found: {args.file}")
         sys.exit(1)
-    
-    with open(import_path, 'r') as f:
+
+    with open(import_path) as f:
         reader = csv.DictReader(f)
         imported = list(reader)
-    
+
     # Normalize fields
     normalized = []
     for row in imported:
@@ -215,7 +215,7 @@ def import_csv(args):
             'notes': row.get('notes', row.get('Notes', '')),
             'type': row.get('type', 'Watchlist')
         })
-    
+
     save_portfolio(normalized)
     print(f"✅ Imported {len(normalized)} stocks from {args.file}")
 
@@ -225,26 +225,26 @@ def create_interactive(args):
     print("\n📊 Portfolio Creator\n")
     print("Enter stocks one per line (format: SYMBOL or SYMBOL,Name,Category)")
     print("Type 'done' when finished.\n")
-    
+
     portfolio = []
-    
+
     while True:
         try:
             line = input("> ").strip()
         except (EOFError, KeyboardInterrupt):
             break
-        
+
         if line.lower() == 'done':
             break
-        
+
         if not line:
             continue
-        
+
         parts = line.split(',')
         symbol = parts[0].strip().upper()
         name = parts[1].strip() if len(parts) > 1 else symbol
         category = parts[2].strip() if len(parts) > 2 else ''
-        
+
         portfolio.append({
             'symbol': symbol,
             'name': name,
@@ -253,7 +253,7 @@ def create_interactive(args):
             'type': 'Watchlist'
         })
         print(f"  Added: {symbol}")
-    
+
     if portfolio:
         save_portfolio(portfolio)
         print(f"\n✅ Created portfolio with {len(portfolio)} stocks")
@@ -265,7 +265,7 @@ def get_symbols(args=None):
     """Get list of symbols (for other scripts to use)."""
     portfolio = load_portfolio()
     symbols = [s['symbol'] for s in portfolio]
-    
+
     if args and args.json:
         import json
         print(json.dumps(symbols))
@@ -276,11 +276,11 @@ def get_symbols(args=None):
 def main():
     parser = argparse.ArgumentParser(description='Portfolio Manager')
     subparsers = parser.add_subparsers(dest='command', required=True)
-    
+
     # List command
     list_parser = subparsers.add_parser('list', help='List portfolio')
     list_parser.set_defaults(func=list_portfolio)
-    
+
     # Add command
     add_parser = subparsers.add_parser('add', help='Add stock')
     add_parser.add_argument('symbol', help='Stock symbol')
@@ -289,26 +289,26 @@ def main():
     add_parser.add_argument('--notes', help='Notes')
     add_parser.add_argument('--type', choices=['Holding', 'Watchlist'], default='Watchlist', help='Portfolio type')
     add_parser.set_defaults(func=add_stock)
-    
+
     # Remove command
     remove_parser = subparsers.add_parser('remove', help='Remove stock')
     remove_parser.add_argument('symbol', help='Stock symbol')
     remove_parser.set_defaults(func=remove_stock)
-    
+
     # Import command
     import_parser = subparsers.add_parser('import', help='Import from CSV')
     import_parser.add_argument('file', help='CSV file path')
     import_parser.set_defaults(func=import_csv)
-    
+
     # Create command
     create_parser = subparsers.add_parser('create', help='Interactive creation')
     create_parser.set_defaults(func=create_interactive)
-    
+
     # Symbols command (for other scripts)
     symbols_parser = subparsers.add_parser('symbols', help='Get symbols list')
     symbols_parser.add_argument('--json', action='store_true', help='Output as JSON')
     symbols_parser.set_defaults(func=get_symbols)
-    
+
     args = parser.parse_args()
     args.func(args)
 

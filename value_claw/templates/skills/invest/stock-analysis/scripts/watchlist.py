@@ -21,8 +21,7 @@ Usage:
 
 import argparse
 import json
-import sys
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
@@ -96,15 +95,15 @@ def add_to_watchlist(
 ) -> dict:
     """Add ticker to watchlist."""
     ticker = ticker.upper()
-    
+
     # Validate ticker
     current_price = get_current_price(ticker)
     if current_price is None:
         return {"success": False, "error": f"Invalid ticker: {ticker}"}
-    
+
     # Load existing watchlist
     watchlist = load_watchlist()
-    
+
     # Check if already exists
     for item in watchlist:
         if item.ticker == ticker:
@@ -123,7 +122,7 @@ def add_to_watchlist(
                 "stop_price": item.stop_price,
                 "alert_on_signal": item.alert_on_signal,
             }
-    
+
     # Add new
     item = WatchlistItem(
         ticker=ticker,
@@ -136,7 +135,7 @@ def add_to_watchlist(
     )
     watchlist.append(item)
     save_watchlist(watchlist)
-    
+
     return {
         "success": True,
         "action": "added",
@@ -152,13 +151,13 @@ def remove_from_watchlist(ticker: str) -> dict:
     """Remove ticker from watchlist."""
     ticker = ticker.upper()
     watchlist = load_watchlist()
-    
+
     original_len = len(watchlist)
     watchlist = [item for item in watchlist if item.ticker != ticker]
-    
+
     if len(watchlist) == original_len:
         return {"success": False, "error": f"{ticker} not in watchlist"}
-    
+
     save_watchlist(watchlist)
     return {"success": True, "removed": ticker}
 
@@ -166,19 +165,19 @@ def remove_from_watchlist(ticker: str) -> dict:
 def list_watchlist() -> dict:
     """List all watchlist items with current prices."""
     watchlist = load_watchlist()
-    
+
     if not watchlist:
         return {"success": True, "items": [], "count": 0}
-    
+
     items = []
     for item in watchlist:
         current_price = get_current_price(item.ticker)
-        
+
         # Calculate change since added
         change_pct = None
         if current_price and item.price_at_add:
             change_pct = ((current_price - item.price_at_add) / item.price_at_add) * 100
-        
+
         # Distance to target/stop
         to_target = None
         to_stop = None
@@ -187,7 +186,7 @@ def list_watchlist() -> dict:
                 to_target = ((item.target_price - current_price) / current_price) * 100
             if item.stop_price:
                 to_stop = ((item.stop_price - current_price) / current_price) * 100
-        
+
         items.append({
             "ticker": item.ticker,
             "current_price": current_price,
@@ -202,7 +201,7 @@ def list_watchlist() -> dict:
             "added_at": item.added_at[:10],
             "notes": item.notes,
         })
-    
+
     return {"success": True, "items": items, "count": len(items)}
 
 
@@ -211,12 +210,12 @@ def check_alerts(notify_format: bool = False) -> dict:
     watchlist = load_watchlist()
     alerts: list[Alert] = []
     now = datetime.now(timezone.utc).isoformat()
-    
+
     for item in watchlist:
         current_price = get_current_price(item.ticker)
         if current_price is None:
             continue
-        
+
         # Check target price
         if item.target_price and current_price >= item.target_price:
             alerts.append(Alert(
@@ -227,7 +226,7 @@ def check_alerts(notify_format: bool = False) -> dict:
                 trigger_value=item.target_price,
                 timestamp=now,
             ))
-        
+
         # Check stop price
         if item.stop_price and current_price <= item.stop_price:
             alerts.append(Alert(
@@ -238,7 +237,7 @@ def check_alerts(notify_format: bool = False) -> dict:
                 trigger_value=item.stop_price,
                 timestamp=now,
             ))
-        
+
         # Check signal change (requires running analyze_stock)
         if item.alert_on_signal:
             try:
@@ -252,7 +251,7 @@ def check_alerts(notify_format: bool = False) -> dict:
                 if result.returncode == 0:
                     analysis = json.loads(result.stdout)
                     new_signal = analysis.get("recommendation")
-                    
+
                     if item.last_signal and new_signal and new_signal != item.last_signal:
                         alerts.append(Alert(
                             ticker=item.ticker,
@@ -262,17 +261,17 @@ def check_alerts(notify_format: bool = False) -> dict:
                             trigger_value=f"{item.last_signal} → {new_signal}",
                             timestamp=now,
                         ))
-                    
+
                     # Update last signal
                     item.last_signal = new_signal
             except Exception:
                 pass
-        
+
         item.last_check = now
-    
+
     # Save updated watchlist (with last_signal updates)
     save_watchlist(watchlist)
-    
+
     # Format output
     if notify_format and alerts:
         # Format for Telegram notification
@@ -280,14 +279,14 @@ def check_alerts(notify_format: bool = False) -> dict:
         for alert in alerts:
             lines.append(alert.message)
         return {"success": True, "alerts": [asdict(a) for a in alerts], "notification": "\n".join(lines)}
-    
+
     return {"success": True, "alerts": [asdict(a) for a in alerts], "count": len(alerts)}
 
 
 def main():
     parser = argparse.ArgumentParser(description="Stock Watchlist with Alerts")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    
+
     # Add
     add_parser = subparsers.add_parser("add", help="Add ticker to watchlist")
     add_parser.add_argument("ticker", help="Stock ticker")
@@ -295,20 +294,20 @@ def main():
     add_parser.add_argument("--stop", type=float, help="Stop loss price for alert")
     add_parser.add_argument("--alert-on", choices=["signal"], help="Alert on signal change")
     add_parser.add_argument("--notes", help="Notes")
-    
+
     # Remove
     remove_parser = subparsers.add_parser("remove", help="Remove ticker from watchlist")
     remove_parser.add_argument("ticker", help="Stock ticker")
-    
+
     # List
     subparsers.add_parser("list", help="List watchlist")
-    
+
     # Check
     check_parser = subparsers.add_parser("check", help="Check for triggered alerts")
     check_parser.add_argument("--notify", action="store_true", help="Format for notification")
-    
+
     args = parser.parse_args()
-    
+
     if args.command == "add":
         result = add_to_watchlist(
             args.ticker,
@@ -318,15 +317,15 @@ def main():
             notes=args.notes,
         )
         print(json.dumps(result, indent=2))
-    
+
     elif args.command == "remove":
         result = remove_from_watchlist(args.ticker)
         print(json.dumps(result, indent=2))
-    
+
     elif args.command == "list":
         result = list_watchlist()
         print(json.dumps(result, indent=2))
-    
+
     elif args.command == "check":
         result = check_alerts(notify_format=args.notify)
         print(json.dumps(result, indent=2))

@@ -5,9 +5,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 import json
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from fetch_news import fetch_market_data, fetch_rss, _get_best_feed_url
+from fetch_news import _get_best_feed_url, fetch_market_data, fetch_rss
 from utils import clamp_timeout, compute_deadline
 
 
@@ -25,9 +26,9 @@ def test_fetch_rss_success(sample_rss_content):
         mock_response.read.return_value = sample_rss_content
         mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
-        
+
         articles = fetch_rss("https://example.com/feed.xml", timeout=7)
-        
+
         assert len(articles) == 2
         assert articles[0]["title"] == "Apple Stock Rises 5%"
         assert articles[1]["title"] == "Tesla Announces New Model"
@@ -50,7 +51,7 @@ def test_get_best_feed_url_priority():
         "top": "https://example.com/top.xml",
         "markets": "https://example.com/markets.xml"
     }
-    
+
     url = _get_best_feed_url(source)
     assert url == "https://example.com/top.xml"
 
@@ -61,7 +62,7 @@ def test_get_best_feed_url_fallback():
         "name": "Test Source",
         "feed": "https://example.com/feed.xml"
     }
-    
+
     url = _get_best_feed_url(source)
     assert url == "https://example.com/feed.xml"
 
@@ -73,7 +74,7 @@ def test_get_best_feed_url_none_if_no_urls():
         "enabled": True,
         "note": "No URLs here"
     }
-    
+
     url = _get_best_feed_url(source)
     assert url is None
 
@@ -86,7 +87,7 @@ def test_get_best_feed_url_skips_non_urls():
         "count": 5,
         "rss": "https://example.com/rss.xml"
     }
-    
+
     url = _get_best_feed_url(source)
     assert url == "https://example.com/rss.xml"
 

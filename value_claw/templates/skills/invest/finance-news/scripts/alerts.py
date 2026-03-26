@@ -79,24 +79,24 @@ def cmd_list(args) -> None:
     """List all alerts."""
     data = load_alerts()
     alerts = data.get("alerts", [])
-    
+
     if not alerts:
         print("📭 No price alerts set")
         return
-    
+
     print(f"📊 Price Alerts ({len(alerts)} total)\n")
-    
+
     now = datetime.now()
     active = []
     snoozed = []
-    
+
     for alert in alerts:
         snooze_until = alert.get("snooze_until")
         if snooze_until and datetime.fromisoformat(snooze_until) > now:
             snoozed.append(alert)
         else:
             active.append(alert)
-    
+
     if active:
         print("### Active Alerts")
         for a in active:
@@ -105,7 +105,7 @@ def cmd_list(args) -> None:
             user = f" (by {a['set_by']})" if a.get("set_by") else ""
             print(f"  • {a['ticker']}: {target}{note}{user}")
         print()
-    
+
     if snoozed:
         print("### Snoozed")
         for a in snoozed:
@@ -120,23 +120,23 @@ def cmd_set(args) -> None:
     data = load_alerts()
     alerts = data.get("alerts", [])
     ticker = args.ticker.upper()
-    
+
     # Check if alert exists
     existing = get_alert_by_ticker(alerts, ticker)
     if existing:
         print(f"⚠️ Alert for {ticker} already exists. Use 'update' to change target.")
         return
-    
+
     # Validate target price
     if args.target <= 0:
-        print(f"❌ Target price must be greater than 0")
+        print("❌ Target price must be greater than 0")
         return
-    
+
     currency = args.currency.upper() if args.currency else "USD"
     if currency not in SUPPORTED_CURRENCIES:
         print(f"❌ Currency {currency} not supported. Use: {', '.join(SUPPORTED_CURRENCIES)}")
         return
-    
+
     # Warn about currency mismatch based on ticker suffix
     ticker_currency_map = {
         ".T": "JPY",      # Tokyo
@@ -149,10 +149,10 @@ def cmd_set(args) -> None:
         if ticker.endswith(suffix):
             expected_currency = curr
             break
-    
+
     if currency != expected_currency:
         print(f"⚠️ Warning: {ticker} trades in {expected_currency}, but alert set in {currency}")
-    
+
     # Fetch current price (optional - may fail if numpy broken)
     current_price = None
     try:
@@ -161,7 +161,7 @@ def cmd_set(args) -> None:
             current_price = quotes[ticker]["price"]
     except Exception as e:
         print(f"⚠️ Could not fetch current price: {e}", file=sys.stderr)
-    
+
     alert = {
         "ticker": ticker,
         "target_price": args.target,
@@ -174,11 +174,11 @@ def cmd_set(args) -> None:
         "triggered_count": 0,
         "last_triggered": None,
     }
-    
+
     alerts.append(alert)
     data["alerts"] = alerts
     save_alerts(data)
-    
+
     target_str = format_price(args.target, currency)
     print(f"✅ Alert set: {ticker} under {target_str}")
     if current_price:
@@ -192,12 +192,12 @@ def cmd_delete(args) -> None:
     data = load_alerts()
     alerts = data.get("alerts", [])
     ticker = args.ticker.upper()
-    
+
     new_alerts = [a for a in alerts if a["ticker"] != ticker]
     if len(new_alerts) == len(alerts):
         print(f"❌ No alert found for {ticker}")
         return
-    
+
     data["alerts"] = new_alerts
     save_alerts(data)
     print(f"🗑️ Alert deleted: {ticker}")
@@ -208,12 +208,12 @@ def cmd_snooze(args) -> None:
     data = load_alerts()
     alerts = data.get("alerts", [])
     ticker = args.ticker.upper()
-    
+
     alert = get_alert_by_ticker(alerts, ticker)
     if not alert:
         print(f"❌ No alert found for {ticker}")
         return
-    
+
     days = args.days or 7
     snooze_until = datetime.now() + timedelta(days=days)
     alert["snooze_until"] = snooze_until.isoformat()
@@ -226,23 +226,23 @@ def cmd_update(args) -> None:
     data = load_alerts()
     alerts = data.get("alerts", [])
     ticker = args.ticker.upper()
-    
+
     alert = get_alert_by_ticker(alerts, ticker)
     if not alert:
         print(f"❌ No alert found for {ticker}")
         return
-    
+
     # Validate target price
     if args.target <= 0:
-        print(f"❌ Target price must be greater than 0")
+        print("❌ Target price must be greater than 0")
         return
-    
+
     old_target = alert["target_price"]
     alert["target_price"] = args.target
     if args.note:
         alert["note"] = args.note
     save_alerts(data)
-    
+
     currency = alert.get("currency", "USD")
     old_str = format_price(old_target, currency)
     new_str = format_price(args.target, currency)
@@ -253,14 +253,14 @@ def cmd_check(args) -> None:
     """Check alerts against current prices."""
     data = load_alerts()
     alerts = data.get("alerts", [])
-    
+
     if not alerts:
         if args.json:
             print(json.dumps({"triggered": [], "watching": []}))
         else:
             print("📭 No alerts to check")
         return
-    
+
     now = datetime.now()
     active_alerts = []
     for alert in alerts:
@@ -268,38 +268,38 @@ def cmd_check(args) -> None:
         if snooze_until and datetime.fromisoformat(snooze_until) > now:
             continue
         active_alerts.append(alert)
-    
+
     if not active_alerts:
         if args.json:
             print(json.dumps({"triggered": [], "watching": []}))
         else:
             print("📭 All alerts snoozed")
         return
-    
+
     # Fetch prices for all active alerts
     tickers = [a["ticker"] for a in active_alerts]
     quotes = get_fetch_market_data()(tickers, timeout=30)
-    
+
     triggered = []
     watching = []
-    
+
     for alert in active_alerts:
         ticker = alert["ticker"]
         target = alert["target_price"]
         currency = alert.get("currency", "USD")
-        
+
         quote = quotes.get(ticker, {})
         price = quote.get("price")
-        
+
         if price is None:
             continue
-        
+
         # Divide-by-zero protection
         if target == 0:
             pct_diff = 0
         else:
             pct_diff = ((price - target) / target) * 100
-        
+
         result = {
             "ticker": ticker,
             "target_price": target,
@@ -309,7 +309,7 @@ def cmd_check(args) -> None:
             "note": alert.get("note", ""),
             "set_by": alert.get("set_by", ""),
         }
-        
+
         if price <= target:
             triggered.append(result)
             # Update triggered count (only once per day to avoid inflation)
@@ -320,9 +320,9 @@ def cmd_check(args) -> None:
             alert["last_triggered"] = now.isoformat()
         else:
             watching.append(result)
-    
+
     save_alerts(data)
-    
+
     if args.json:
         print(json.dumps({"triggered": triggered, "watching": watching}, indent=2))
         return
@@ -384,42 +384,42 @@ def check_alerts() -> dict:
     """
     data = load_alerts()
     alerts = data.get("alerts", [])
-    
+
     if not alerts:
         return {"triggered": [], "watching": []}
-    
+
     now = datetime.now()
     active_alerts = [
         a for a in alerts
         if not a.get("snooze_until") or datetime.fromisoformat(a["snooze_until"]) <= now
     ]
-    
+
     if not active_alerts:
         return {"triggered": [], "watching": []}
-    
+
     tickers = [a["ticker"] for a in active_alerts]
     quotes = get_fetch_market_data()(tickers, timeout=30)
-    
+
     triggered = []
     watching = []
-    
+
     for alert in active_alerts:
         ticker = alert["ticker"]
         target = alert["target_price"]
         currency = alert.get("currency", "USD")
-        
+
         quote = quotes.get(ticker, {})
         price = quote.get("price")
-        
+
         if price is None:
             continue
-        
+
         # Divide-by-zero protection
         if target == 0:
             pct_diff = 0
         else:
             pct_diff = ((price - target) / target) * 100
-        
+
         result = {
             "ticker": ticker,
             "target_price": target,
@@ -429,7 +429,7 @@ def check_alerts() -> dict:
             "note": alert.get("note", ""),
             "set_by": alert.get("set_by", ""),
         }
-        
+
         if price <= target:
             triggered.append(result)
             # Update triggered count (only once per day to avoid inflation)
@@ -440,7 +440,7 @@ def check_alerts() -> dict:
             alert["last_triggered"] = now.isoformat()
         else:
             watching.append(result)
-    
+
     save_alerts(data)
     return {"triggered": triggered, "watching": watching}
 
@@ -448,10 +448,10 @@ def check_alerts() -> dict:
 def main():
     parser = argparse.ArgumentParser(description="Price target alerts")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    
+
     # list
     subparsers.add_parser("list", help="List all alerts")
-    
+
     # set
     set_parser = subparsers.add_parser("set", help="Set new alert")
     set_parser.add_argument("ticker", help="Stock ticker")
@@ -459,29 +459,29 @@ def main():
     set_parser.add_argument("--note", help="Note/reason")
     set_parser.add_argument("--user", help="Who set the alert")
     set_parser.add_argument("--currency", default="USD", help="Currency (USD, EUR, JPY, SGD, MXN)")
-    
+
     # delete
     del_parser = subparsers.add_parser("delete", help="Delete alert")
     del_parser.add_argument("ticker", help="Stock ticker")
-    
+
     # snooze
     snooze_parser = subparsers.add_parser("snooze", help="Snooze alert")
     snooze_parser.add_argument("ticker", help="Stock ticker")
     snooze_parser.add_argument("--days", type=int, default=7, help="Days to snooze")
-    
+
     # update
     update_parser = subparsers.add_parser("update", help="Update alert target")
     update_parser.add_argument("ticker", help="Stock ticker")
     update_parser.add_argument("target", type=float, help="New target price")
     update_parser.add_argument("--note", help="Update note")
-    
+
     # check
     check_parser = subparsers.add_parser("check", help="Check alerts against prices")
     check_parser.add_argument("--json", action="store_true", help="JSON output")
     check_parser.add_argument("--lang", default="en", help="Output language (en, de)")
-    
+
     args = parser.parse_args()
-    
+
     if args.command == "list":
         cmd_list(args)
     elif args.command == "set":

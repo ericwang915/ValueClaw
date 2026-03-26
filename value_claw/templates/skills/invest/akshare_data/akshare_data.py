@@ -2,7 +2,6 @@
 """Chinese market data via AKShare: A-shares, HK stocks, indices, news, macro."""
 
 import argparse
-import json
 import sys
 from datetime import datetime, timedelta
 
@@ -107,12 +106,12 @@ def cmd_hist(symbol: str, period: str = "daily", start: str = None, count: int =
             date = str(row.get("日期", row.get("date", "")))[:10]
             o = _safe(row.get("开盘"), "{:.2f}")
             h = _safe(row.get("最高"), "{:.2f}")
-            l = _safe(row.get("最低"), "{:.2f}")
+            low = _safe(row.get("最低"), "{:.2f}")
             c = _safe(row.get("收盘"), "{:.2f}")
             vol = _fmt_num(row.get("成交量", row.get("volume")))
             pct = row.get("涨跌幅", row.get("pct_chg", ""))
             pct_str = f"{float(pct):+.2f}%" if pct != "" else "N/A"
-            lines.append(f"  {date:<12} {o:>8} {h:>8} {l:>8} {c:>8} {vol:>12} {pct_str:>8}")
+            lines.append(f"  {date:<12} {o:>8} {h:>8} {low:>8} {c:>8} {vol:>12} {pct_str:>8}")
         return "\n".join(lines)
     except Exception as exc:
         return f"Error fetching history for {symbol}: {exc}"
@@ -194,7 +193,7 @@ def cmd_indices() -> str:
         }
         lines = [
             f"{'═' * 56}",
-            f"  A股主要指数实时行情",
+            "  A股主要指数实时行情",
             f"{'═' * 56}",
             f"  {'指数':<24} {'最新':>10} {'涨跌幅':>9} {'涨跌额':>9}",
             f"  {'─' * 24} {'─' * 10} {'─' * 9} {'─' * 9}",
@@ -234,7 +233,7 @@ def cmd_market(top_n: int = 15) -> str:
         losers = df.nsmallest(top_n, "涨跌幅")[["代码", "名称", "最新价", "涨跌幅", "成交额"]]
         lines = [f"{'═' * 58}", f"  A股市场涨跌排行 (Top {top_n})", f"{'═' * 58}"]
 
-        lines.append(f"\n── 涨幅榜 ────────────────────────────────────────")
+        lines.append("\n── 涨幅榜 ────────────────────────────────────────")
         lines.append(f"  {'代码':<8} {'名称':<10} {'价格':>8} {'涨跌幅':>8} {'成交额':>12}")
         for _, r in gainers.iterrows():
             lines.append(
@@ -242,7 +241,7 @@ def cmd_market(top_n: int = 15) -> str:
                 f"{_safe(r['涨跌幅'], '{:+.2f}%'):>8} {_fmt_num(r['成交额']):>12}"
             )
 
-        lines.append(f"\n── 跌幅榜 ────────────────────────────────────────")
+        lines.append("\n── 跌幅榜 ────────────────────────────────────────")
         lines.append(f"  {'代码':<8} {'名称':<10} {'价格':>8} {'涨跌幅':>8} {'成交额':>12}")
         for _, r in losers.iterrows():
             lines.append(
@@ -302,7 +301,7 @@ def cmd_sectors() -> str:
             return str(df.head(20))
         lines = [
             f"{'═' * 56}",
-            f"  A股板块行情",
+            "  A股板块行情",
             f"{'═' * 56}",
             f"  {'板块':<16} {'涨跌幅':>8} {'领涨股':>10}",
             f"  {'─' * 16} {'─' * 8} {'─' * 10}",

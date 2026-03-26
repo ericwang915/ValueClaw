@@ -11,16 +11,15 @@ Sources:
 Usage: python3 rumor_scanner.py
 """
 
+import gzip
 import json
 import os
-import subprocess
-import sys
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.request import urlopen, Request
 from urllib.parse import quote_plus
-import gzip
+from urllib.request import Request, urlopen
 
 CACHE_DIR = Path(__file__).parent.parent / "cache"
 CACHE_DIR.mkdir(exist_ok=True)
@@ -52,13 +51,13 @@ def fetch_url(url, timeout=15):
             if resp.info().get('Content-Encoding') == 'gzip':
                 data = gzip.decompress(data)
             return data.decode('utf-8', errors='ignore')
-    except Exception as e:
+    except Exception:
         return None
 
 def search_twitter_rumors():
     """Search Twitter for rumors and early signals."""
     results = []
-    
+
     # Rumor-focused search queries
     queries = [
         '"hearing that" stock OR $',
@@ -70,16 +69,16 @@ def search_twitter_rumors():
         '"breaking" stock market',
         'M&A rumor',
     ]
-    
+
     load_env()
-    
+
     for query in queries[:4]:  # Limit to avoid rate limits
         try:
             cmd = [BIRD_CLI, 'search', query, '-n', '10', '--json']
             env = os.environ.copy()
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env)
-            
+
             if result.returncode == 0 and result.stdout:
                 try:
                     tweets = json.loads(result.stdout)
@@ -98,9 +97,9 @@ def search_twitter_rumors():
                             })
                 except json.JSONDecodeError:
                     pass
-        except Exception as e:
+        except Exception:
             pass
-    
+
     # Dedupe by text similarity
     seen = set()
     unique = []
@@ -109,13 +108,13 @@ def search_twitter_rumors():
         if key not in seen:
             seen.add(key)
             unique.append(r)
-    
+
     return unique
 
 def search_twitter_buzz():
     """Search Twitter for general stock buzz - what are people talking about?"""
     results = []
-    
+
     queries = [
         '$SPY OR $QQQ',
         'stock to buy',
@@ -123,16 +122,16 @@ def search_twitter_buzz():
         'earnings play',
         'short squeeze',
     ]
-    
+
     load_env()
-    
+
     for query in queries[:3]:
         try:
             cmd = [BIRD_CLI, 'search', query, '-n', '15', '--json']
             env = os.environ.copy()
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env)
-            
+
             if result.returncode == 0 and result.stdout:
                 try:
                     tweets = json.loads(result.stdout)
@@ -151,9 +150,9 @@ def search_twitter_buzz():
                             })
                 except json.JSONDecodeError:
                     pass
-        except Exception as e:
+        except Exception:
             pass
-    
+
     # Sort by engagement
     results.sort(key=lambda x: x.get('engagement', 0), reverse=True)
     return results[:20]
@@ -161,7 +160,7 @@ def search_twitter_buzz():
 def search_news_rumors():
     """Search Google News for M&A, insider, upgrade news."""
     results = []
-    
+
     queries = [
         'merger acquisition rumor',
         'insider buying stock',
@@ -169,11 +168,11 @@ def search_news_rumors():
         'takeover bid company',
         'SEC investigation company',
     ]
-    
+
     for query in queries:
         url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en-US&gl=US&ceid=US:en"
         content = fetch_url(url)
-        
+
         if content:
             import xml.etree.ElementTree as ET
             try:
@@ -182,7 +181,7 @@ def search_news_rumors():
                     title = item.find('title')
                     link = item.find('link')
                     pub_date = item.find('pubDate')
-                    
+
                     if title is not None:
                         title_text = title.text or ''
                         # Extract company names or symbols
@@ -196,14 +195,14 @@ def search_news_rumors():
                         })
             except ET.ParseError:
                 pass
-    
+
     return results
 
 def extract_symbols_from_text(text):
     """Extract stock symbols from text."""
     # $SYMBOL pattern
     dollar_symbols = re.findall(r'\$([A-Z]{1,5})\b', text)
-    
+
     # Common company name to symbol mapping
     company_map = {
         'apple': 'AAPL', 'tesla': 'TSLA', 'nvidia': 'NVDA', 'microsoft': 'MSFT',
@@ -211,17 +210,17 @@ def extract_symbols_from_text(text):
         'coinbase': 'COIN', 'robinhood': 'HOOD', 'disney': 'DIS', 'intel': 'INTC',
         'amd': 'AMD', 'palantir': 'PLTR', 'gamestop': 'GME', 'amc': 'AMC',
     }
-    
+
     text_lower = text.lower()
     company_symbols = [sym for name, sym in company_map.items() if name in text_lower]
-    
+
     return list(set(dollar_symbols + company_symbols))
 
 def calculate_rumor_score(item):
     """Score a rumor by potential impact."""
     score = 0
     text = (item.get('text', '') + item.get('title', '')).lower()
-    
+
     # High impact keywords
     if any(kw in text for kw in ['merger', 'acquisition', 'takeover', 'buyout']):
         score += 5
@@ -235,13 +234,13 @@ def calculate_rumor_score(item):
         score += 2
     if any(kw in text for kw in ['breaking', 'just in', 'alert']):
         score += 2
-    
+
     # Engagement boost
     if item.get('engagement', 0) > 100:
         score += 2
     if item.get('likes', 0) > 50:
         score += 1
-    
+
     return score
 
 def main():
@@ -252,48 +251,48 @@ def main():
     print()
     print("🔍 Scanning for early signals...")
     print()
-    
+
     all_rumors = []
     all_buzz = []
-    
+
     # Twitter Rumors
     print("  🐦 Twitter rumors...")
     rumors = search_twitter_rumors()
     print(f"    ✅ {len(rumors)} potential rumors")
     all_rumors.extend(rumors)
-    
+
     # Twitter Buzz
     print("  🐦 Twitter buzz...")
     buzz = search_twitter_buzz()
     print(f"    ✅ {len(buzz)} buzz items")
     all_buzz.extend(buzz)
-    
+
     # News Rumors
     print("  📰 News rumors...")
     news = search_news_rumors()
     print(f"    ✅ {len(news)} news items")
     all_rumors.extend(news)
-    
+
     # Score and sort rumors
     for item in all_rumors:
         item['score'] = calculate_rumor_score(item)
         item['symbols'] = extract_symbols_from_text(item.get('text', '') + item.get('title', ''))
-    
+
     all_rumors.sort(key=lambda x: x['score'], reverse=True)
-    
+
     # Count symbol mentions in buzz
     symbol_counts = {}
     for item in all_buzz:
         for sym in item.get('symbols', []):
             symbol_counts[sym] = symbol_counts.get(sym, 0) + 1
-    
+
     # Output
     print()
     print("=" * 60)
     print("🔮 RESULTS")
     print("=" * 60)
     print()
-    
+
     # Top Rumors
     print("🚨 TOP RUMORS (by potential impact):")
     print()
@@ -305,7 +304,7 @@ def main():
             print(f"   [{item['score']}] [{source}] {symbols}")
             print(f"       {text}...")
             print()
-    
+
     # Buzz Leaderboard
     print("📊 BUZZ LEADERBOARD (most discussed):")
     print()
@@ -313,9 +312,9 @@ def main():
     for symbol, count in sorted_symbols[:15]:
         bar = "█" * min(count, 20)
         print(f"   ${symbol:5} {bar} ({count})")
-    
+
     print()
-    
+
     # Recent Buzz Snippets
     print("💬 WHAT PEOPLE ARE SAYING:")
     print()
@@ -325,7 +324,7 @@ def main():
         engagement = item.get('engagement', 0)
         print(f"   @{author} ({engagement}♥): {text}...")
         print()
-    
+
     # Save results
     output = {
         'timestamp': datetime.now(timezone.utc).isoformat(),
@@ -333,7 +332,7 @@ def main():
         'buzz': all_buzz[:30],
         'symbol_counts': symbol_counts,
     }
-    
+
     output_file = CACHE_DIR / 'rumor_scan_latest.json'
     output_file.write_text(json.dumps(output, indent=2, default=str))
     print(f"💾 Saved: {output_file}")

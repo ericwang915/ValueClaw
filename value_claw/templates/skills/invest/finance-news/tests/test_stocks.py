@@ -4,7 +4,6 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -12,16 +11,16 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from stocks import (
-    load_stocks,
-    save_stocks,
+    add_to_holdings,
+    add_to_watchlist,
+    get_holding_tickers,
     get_holdings,
     get_watchlist,
-    get_holding_tickers,
     get_watchlist_tickers,
-    add_to_watchlist,
-    add_to_holdings,
+    load_stocks,
     move_to_holdings,
     remove_stock,
+    save_stocks,
 )
 
 

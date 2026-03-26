@@ -200,16 +200,16 @@ def analyze(symbol: str, period: str = "1y", show: str = "all") -> str:
         bbl = cur.get("BBL", float("nan"))
         lines.append("\n── Bollinger Bands (20, 2σ) ───────────────────────")
         try:
-            u, m, l = float(bbu), float(bbm), float(bbl)
-            width = (u - l) / m * 100
-            pos = (price - l) / (u - l) * 100
-            lines.append(f"  Upper:    {u:>10.2f}")
-            lines.append(f"  Mid:      {m:>10.2f}")
-            lines.append(f"  Lower:    {l:>10.2f}")
+            bb_upper, bb_mid, bb_lower = float(bbu), float(bbm), float(bbl)
+            width = (bb_upper - bb_lower) / bb_mid * 100
+            pos = (price - bb_lower) / (bb_upper - bb_lower) * 100
+            lines.append(f"  Upper:    {bb_upper:>10.2f}")
+            lines.append(f"  Mid:      {bb_mid:>10.2f}")
+            lines.append(f"  Lower:    {bb_lower:>10.2f}")
             lines.append(f"  Width:    {width:.1f}%   Position: {pos:.0f}%")
-            if price > u:
+            if price > bb_upper:
                 lines.append("  ⚠️  Price above upper band — potentially overbought")
-            elif price < l:
+            elif price < bb_lower:
                 lines.append("  ✅ Price below lower band — potentially oversold")
             elif pos > 80:
                 lines.append("  📈 Near upper band — strong momentum")
@@ -325,7 +325,7 @@ def main():
         close = df["Close"]
         high = df["High"]
         low = df["Low"]
-        volume = df["Volume"]
+        df["Volume"]
         df["RSI"] = _rsi(close)
         df["MACD"], df["MACDsig"], df["MACDhist"] = _macd(close)
         df["BBU"], df["BBM"], df["BBL"] = _bollinger(close)

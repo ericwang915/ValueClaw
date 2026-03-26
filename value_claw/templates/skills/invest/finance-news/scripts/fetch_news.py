@@ -7,18 +7,18 @@ import argparse
 import json
 import os
 import shutil
+import ssl
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
 from pathlib import Path
-import ssl
-import urllib.error
-import urllib.request
-import yfinance as yf
-import pandas as pd
 
+import pandas as pd
+import yfinance as yf
 from utils import clamp_timeout, compute_deadline, ensure_venv, time_left
 
 # Retry configuration
@@ -103,7 +103,7 @@ DEFAULT_SOURCE_WEIGHTS = {
 
 ensure_venv()
 
-import feedparser
+import feedparser  # noqa: E402
 
 
 class PortfolioError(Exception):
@@ -121,11 +121,11 @@ def ensure_portfolio_config():
     if example_file.exists():
         try:
             shutil.copy(example_file, real_file)
-            print(f"📋 Created portfolio.csv from example", file=sys.stderr)
+            print("📋 Created portfolio.csv from example", file=sys.stderr)
         except PermissionError:
-            print(f"⚠️ Cannot create portfolio.csv (read-only environment)", file=sys.stderr)
+            print("⚠️ Cannot create portfolio.csv (read-only environment)", file=sys.stderr)
     else:
-        print(f"⚠️ No portfolio.csv or portfolio.csv.example found", file=sys.stderr)
+        print("⚠️ No portfolio.csv or portfolio.csv.example found", file=sys.stderr)
 
 
 # Initialize user config (copy example if needed)
@@ -135,14 +135,14 @@ ensure_portfolio_config()
 def get_openbb_binary() -> str:
     """
     Find openbb-quote binary.
-    
+
     Checks (in order):
     1. OPENBB_QUOTE_BIN environment variable
     2. PATH via shutil.which()
-    
+
     Returns:
         Path to openbb-quote binary
-        
+
     Raises:
         RuntimeError: If openbb-quote is not found
     """
@@ -153,12 +153,12 @@ def get_openbb_binary() -> str:
             return env_path
         else:
             print(f"⚠️ OPENBB_QUOTE_BIN={env_path} is not a valid executable", file=sys.stderr)
-    
+
     # Check PATH
     binary = shutil.which('openbb-quote')
     if binary:
         return binary
-    
+
     # Not found - show helpful error
     raise RuntimeError(
         "openbb-quote not found!\n\n"
@@ -182,45 +182,45 @@ def load_sources():
     """Load source configuration."""
     config_path = CONFIG_DIR / "config.json"
     if config_path.exists():
-        with open(config_path, 'r') as f:
+        with open(config_path) as f:
             return json.load(f)
     legacy_path = CONFIG_DIR / "sources.json"
     if legacy_path.exists():
         print("⚠️ config/config.json missing; falling back to config/sources.json", file=sys.stderr)
-        with open(legacy_path, 'r') as f:
+        with open(legacy_path) as f:
             return json.load(f)
     raise FileNotFoundError("Missing config/config.json")
 
 
 def _get_best_feed_url(feeds: dict) -> str | None:
     """Get the best feed URL from a feeds configuration dict.
-    
+
     Uses explicit priority list and validates URLs to avoid selecting
     non-URL values like 'name' or other config keys.
-    
+
     Args:
         feeds: Dict with feed keys like 'top', 'markets', 'tech'
-        
+
     Returns:
         Best URL string or None if no valid URL found
     """
     # Priority order for feed types (most relevant first)
     PRIORITY_KEYS = ['top', 'markets', 'headlines', 'breaking']
-    
+
     for key in PRIORITY_KEYS:
         if key in feeds:
             value = feeds[key]
             # Validate it's a string and starts with http
             if isinstance(value, str) and value.startswith('http'):
                 return value
-    
+
     # Fallback: search all values for valid URLs (skip non-string/non-URL)
     for key, value in feeds.items():
         if key == 'name':
             continue  # Skip 'name' field
         if isinstance(value, str) and value.startswith('http'):
             return value
-    
+
     return None
 
 
@@ -457,13 +457,13 @@ def fetch_ticker_news(symbol: str, limit: int = 5) -> list[dict]:
 def get_cached_news(cache_key: str) -> dict | None:
     """Get cached news if fresh (< 15 minutes)."""
     cache_file = CACHE_DIR / f"{cache_key}.json"
-    
+
     if cache_file.exists():
         mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
         if datetime.now() - mtime < timedelta(minutes=15):
-            with open(cache_file, 'r') as f:
+            with open(cache_file) as f:
                 return json.load(f)
-    
+
     return None
 
 
@@ -478,42 +478,42 @@ def fetch_all_news(args):
     """Fetch news from all configured sources."""
     sources = load_sources()
     cache_key = f"all_news_{datetime.now().strftime('%Y%m%d_%H')}"
-    
+
     # Check cache first
     if not args.force:
         cached = get_cached_news(cache_key)
         if cached:
             print(json.dumps(cached, indent=2))
             return
-    
+
     news = {
         'fetched_at': datetime.now().isoformat(),
         'sources': {}
     }
-    
+
     # Fetch RSS feeds
     for source_id, feeds in sources['rss_feeds'].items():
         # Skip disabled sources
         if not feeds.get('enabled', True):
             continue
-            
+
         news['sources'][source_id] = {
             'name': feeds.get('name', source_id),
             'articles': []
         }
-        
+
         for feed_name, feed_url in feeds.items():
             if feed_name in ('name', 'enabled', 'note'):
                 continue
-            
+
             articles = fetch_rss(feed_url, args.limit)
             for article in articles:
                 article['feed'] = feed_name
             news['sources'][source_id]['articles'].extend(articles)
-    
+
     # Save to cache
     save_cache(cache_key, news)
-    
+
     if args.json:
         print(json.dumps(news, indent=2))
     else:
@@ -544,7 +544,7 @@ def get_market_news(
         if isinstance(lang_sources, list) and lang_sources:
             headline_sources = lang_sources
     headline_exclude = set(sources.get("headline_exclude", []))
-    
+
     result = {
         'fetched_at': datetime.now().isoformat(),
         'markets': {},
@@ -612,7 +612,7 @@ def fetch_market_news(args):
     """Fetch market overview (indices + top headlines)."""
     deadline = compute_deadline(args.deadline)
     result = get_market_news(args.limit, deadline=deadline)
-    
+
     if args.json:
         print(json.dumps(result, indent=2))
     else:
@@ -626,7 +626,7 @@ def fetch_market_news(args):
                     emoji = '📈' if change_pct >= 0 else '📉'
                     print(f"  {emoji} {idx['name']}: {price} ({change_pct:+.2f}%)")
             print()
-        
+
         print("\n🔥 Top Headlines\n")
         for article in result['headlines'][:args.limit]:
             print(f"• [{article['source']}] {article['title']}")
@@ -638,7 +638,7 @@ def get_portfolio_metadata() -> dict:
     meta = {}
     if path.exists():
         import csv
-        with open(path, 'r') as f:
+        with open(path) as f:
             for row in csv.DictReader(f):
                 sym = row.get('symbol', '').strip().upper()
                 if sym:
@@ -655,12 +655,12 @@ def get_portfolio_news(
     """Get news for portfolio stocks as data."""
     if not (CONFIG_DIR / "portfolio.csv").exists():
         raise PortfolioError("Portfolio config missing: config/portfolio.csv")
-    
+
     # Get symbols from portfolio
     symbols = get_portfolio_symbols()
     if not symbols:
         raise PortfolioError("No portfolio symbols found")
-    
+
     # Get metadata
     portfolio_meta = get_portfolio_metadata()
 
@@ -669,7 +669,7 @@ def get_portfolio_news(
         print(f"⚡ Large portfolio detected ({len(symbols)} stocks); using tiered fetch.", file=sys.stderr)
         return get_large_portfolio_news(
             limit=limit,
-            top_movers_count=10, 
+            top_movers_count=10,
             deadline=deadline,
             subprocess_timeout=subprocess_timeout,
             portfolio_meta=portfolio_meta
@@ -680,25 +680,25 @@ def get_portfolio_news(
         'fetched_at': datetime.now().isoformat(),
         'stocks': {}
     }
-    
+
     # Limit stocks for performance if manual limit set (legacy logic)
     if max_stocks and len(symbols) > max_stocks:
         symbols = symbols[:max_stocks]
-    
+
     for symbol in symbols:
         if time_left(deadline) is not None and time_left(deadline) <= 0:
             print("⚠️ Deadline exceeded; returning partial portfolio news", file=sys.stderr)
             break
         if not symbol:
             continue
-        
+
         articles = fetch_ticker_news(symbol, limit)
         quotes = fetch_market_data(
             [symbol],
             timeout=subprocess_timeout,
             deadline=deadline,
         )
-        
+
         news['stocks'][symbol] = {
             'quote': quotes.get(symbol, {}),
             'articles': articles,
@@ -788,20 +788,20 @@ def deduplicate_news(articles: list[dict]) -> list[dict]:
 def get_portfolio_only_news(limit_per_ticker: int = 5) -> dict:
     """
     Get portfolio news with top 5 gainers and 5 losers, plus news per ticker.
-    
+
     Args:
         limit_per_ticker: Max news items per ticker (default: 5)
-    
+
     Returns:
         dict with 'gainers', 'losers' (each: list of tickers with price + news)
     """
     symbols = get_portfolio_symbols()
     if not symbols:
         return {'error': 'No portfolio symbols found', 'gainers': [], 'losers': []}
-    
+
     # Fetch prices for all symbols
     quotes = fetch_market_data(symbols)
-    
+
     # Build list of (symbol, change_pct)
     tickers_with_prices = []
     for symbol in symbols:
@@ -809,28 +809,28 @@ def get_portfolio_only_news(limit_per_ticker: int = 5) -> dict:
         price = quote.get('price')
         prev_close = quote.get('prev_close', 0)
         open_price = quote.get('open', 0)
-        
+
         if price and prev_close and prev_close != 0:
             change_pct = ((price - prev_close) / prev_close) * 100
         elif price and open_price and open_price != 0:
             change_pct = ((price - open_price) / open_price) * 100
         else:
             change_pct = 0
-        
+
         tickers_with_prices.append({
             'symbol': symbol,
             'price': price,
             'change_pct': change_pct,
             'quote': quote
         })
-    
+
     # Sort by change_pct
     sorted_tickers = sorted(tickers_with_prices, key=lambda x: x['change_pct'], reverse=True)
-    
+
     # Get top 5 gainers and 5 losers
     gainers = sorted_tickers[:5]
     losers = sorted_tickers[-5:][::-1]  # Reverse to show biggest loser first
-    
+
     # Fetch news for each ticker
     for ticker_list in [gainers, losers]:
         for ticker in ticker_list:
@@ -841,7 +841,7 @@ def get_portfolio_only_news(limit_per_ticker: int = 5) -> dict:
                 # Fallback to web search if no RSS
                 articles = web_search_news(symbol, limit_per_ticker)
             ticker['news'] = deduplicate_news(articles)
-    
+
     return {
         'fetched_at': datetime.now().isoformat(),
         'gainers': gainers,
@@ -956,33 +956,33 @@ def get_large_portfolio_news(
 
     # This uses the new yfinance batching
     quotes = fetch_market_data(symbols, timeout=effective_timeout, deadline=deadline)
-    
+
     # 2. Identify top movers
     movers = []
     for symbol, data in quotes.items():
         change = data.get('change_percent', 0)
         movers.append((symbol, change, data))
-    
+
     # Sort: Absolute change descending? Or Gainers vs Losers?
     # Issue says: "Biggest gainers (top 5), Biggest losers (top 5)"
-    
+
     movers.sort(key=lambda x: x[1]) # Sort by change ascending
-    
+
     losers = movers[:5] # Bottom 5
     gainers = movers[-5:] # Top 5
     gainers.reverse() # Descending
-    
+
     # Combined list for news fetching
     # Ensure uniqueness if < 10 stocks total
     top_symbols = []
     seen = set()
-    
+
     for m in gainers + losers:
         sym = m[0]
         if sym not in seen:
             top_symbols.append(sym)
             seen.add(sym)
-            
+
     # 3. Fetch news for top movers
     news = {
         'fetched_at': datetime.now().isoformat(),
@@ -992,29 +992,31 @@ def get_large_portfolio_news(
             'top_movers_count': len(top_symbols)
         }
     }
-    
+
     for symbol in top_symbols:
         if time_left(deadline) is not None and time_left(deadline) <= 0:
             break
-            
+
         articles = fetch_ticker_news(symbol, limit)
         quote_data = quotes.get(symbol, {})
-        
+
         news['stocks'][symbol] = {
             'quote': quote_data,
             'articles': articles,
             'info': portfolio_meta.get(symbol, {}) if portfolio_meta else {}
         }
-        
+
     return news
 
+
+def _display_portfolio_news(args):  # noqa: F841
     """Fetch portfolio-only news (top 5 gainers + top 5 losers with news)."""
     result = get_portfolio_only_news(limit_per_ticker=args.limit)
-    
+
     if "error" in result:
         print(f"\n❌ Error: {result.get('error', 'Unknown')}", file=sys.stderr)
         sys.exit(1)
-    
+
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return
@@ -1034,12 +1036,12 @@ def get_large_portfolio_news(
         else:
             lines.append("  • No recent news")
         return '\n'.join(lines)
-    
+
     print("\n🚀 **Top Gainers**\n")
     for ticker in result['gainers']:
         print(format_ticker(ticker))
         print()
-    
+
     print("\n📉 **Top Losers**\n")
     for ticker in result['losers']:
         print(format_ticker(ticker))
@@ -1049,11 +1051,11 @@ def get_large_portfolio_news(
 def fetch_portfolio_only(args):
     """Fetch portfolio-only news (top 5 gainers + top 5 losers with news)."""
     result = get_portfolio_only_news(limit_per_ticker=args.limit)
-    
+
     if "error" in result:
         print(f"\n❌ Error: {result.get('error', 'Unknown')}", file=sys.stderr)
         sys.exit(1)
-    
+
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return
@@ -1073,12 +1075,12 @@ def fetch_portfolio_only(args):
         else:
             lines.append("  • No recent news")
         return '\n'.join(lines)
-    
+
     print("\n🚀 **Top Gainers**\n")
     for ticker in result['gainers']:
         print(format_ticker(ticker))
         print()
-    
+
     print("\n📉 **Top Losers**\n")
     for ticker in result['losers']:
         print(format_ticker(ticker))
@@ -1088,7 +1090,7 @@ def fetch_portfolio_only(args):
 def main():
     parser = argparse.ArgumentParser(description='News Fetcher')
     subparsers = parser.add_subparsers(dest='command', required=True)
-    
+
     # All news
     all_parser = subparsers.add_parser('all', help='Fetch all news sources')
     all_parser.add_argument('--json', action='store_true', help='Output as JSON')
@@ -1096,14 +1098,14 @@ def main():
     all_parser.add_argument('--force', action='store_true', help='Bypass cache')
     all_parser.add_argument('--verbose', '-v', action='store_true', help='Show descriptions')
     all_parser.set_defaults(func=fetch_all_news)
-    
+
     # Market news
     market_parser = subparsers.add_parser('market', help='Market overview + headlines')
     market_parser.add_argument('--json', action='store_true', help='Output as JSON')
     market_parser.add_argument('--limit', type=int, default=5, help='Max articles per source')
     market_parser.add_argument('--deadline', type=int, default=None, help='Overall deadline in seconds')
     market_parser.set_defaults(func=fetch_market_news)
-    
+
     # Portfolio news
     portfolio_parser = subparsers.add_parser('portfolio', help='News for portfolio stocks')
     portfolio_parser.add_argument('--json', action='store_true', help='Output as JSON')
@@ -1111,13 +1113,13 @@ def main():
     portfolio_parser.add_argument('--max-stocks', type=int, default=5, help='Max stocks to fetch (default: 5)')
     portfolio_parser.add_argument('--deadline', type=int, default=None, help='Overall deadline in seconds')
     portfolio_parser.set_defaults(func=fetch_portfolio_news)
-    
+
     # Portfolio-only news (top 5 gainers + top 5 losers)
     portfolio_only_parser = subparsers.add_parser('portfolio-only', help='Top 5 gainers + top 5 losers with news')
     portfolio_only_parser.add_argument('--json', action='store_true', help='Output as JSON')
     portfolio_only_parser.add_argument('--limit', type=int, default=5, help='Max news items per ticker')
     portfolio_only_parser.set_defaults(func=fetch_portfolio_only)
-    
+
     args = parser.parse_args()
     args.func(args)
 

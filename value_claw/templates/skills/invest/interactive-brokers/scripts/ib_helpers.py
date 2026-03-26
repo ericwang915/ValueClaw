@@ -14,6 +14,7 @@ import sys
 from contextlib import contextmanager
 from datetime import datetime
 
+
 def _load_ib_config() -> dict:
     """Load IB connection defaults from value_claw.json or env vars."""
     defaults = {"host": "127.0.0.1", "port": 7497, "clientId": 1}

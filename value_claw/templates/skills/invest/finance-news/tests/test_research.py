@@ -1,10 +1,9 @@
 """Tests for research.py - deep research module."""
 
-import json
+import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import subprocess
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -12,13 +11,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from research import (
-    format_market_data,
     format_headlines,
+    format_market_data,
     format_portfolio_news,
-    gemini_available,
-    research_with_gemini,
     format_raw_data_report,
+    gemini_available,
     generate_research_content,
+    research_with_gemini,
 )
 
 
@@ -85,7 +84,7 @@ class TestFormatMarketData:
     def test_formats_market_indices(self, sample_market_data):
         """Format market indices with prices and changes."""
         result = format_market_data(sample_market_data)
-        
+
         assert "## Market Data" in result
         assert "### US Markets" in result
         assert "S&P 500" in result
@@ -96,7 +95,7 @@ class TestFormatMarketData:
     def test_shows_negative_change_emoji(self, sample_market_data):
         """Negative changes show down emoji."""
         result = format_market_data(sample_market_data)
-        
+
         assert "Nasdaq 100" in result
         assert "-0.50%" in result
         assert "📉" in result  # Negative change
@@ -134,7 +133,7 @@ class TestFormatHeadlines:
             {"source": "Bloomberg", "title": "Market update", "link": "https://example.com/2"},
         ]
         result = format_headlines(headlines)
-        
+
         assert "## Current Headlines" in result
         assert "[Reuters] Breaking news" in result
         assert "URL: https://example.com/1" in result
@@ -144,14 +143,14 @@ class TestFormatHeadlines:
         """Handle headlines with missing source."""
         headlines = [{"title": "No source headline", "link": "https://example.com"}]
         result = format_headlines(headlines)
-        
+
         assert "[Unknown] No source headline" in result
 
     def test_handles_missing_link(self):
         """Handle headlines without links."""
         headlines = [{"source": "Reuters", "title": "No link"}]
         result = format_headlines(headlines)
-        
+
         assert "[Reuters] No link" in result
         assert "URL:" not in result
 
@@ -159,7 +158,7 @@ class TestFormatHeadlines:
         """Limit output to 20 headlines max."""
         headlines = [{"source": f"Source{i}", "title": f"Title {i}"} for i in range(30)]
         result = format_headlines(headlines)
-        
+
         assert "[Source19]" in result
         assert "[Source20]" not in result
 
@@ -175,7 +174,7 @@ class TestFormatPortfolioNews:
     def test_formats_portfolio_stocks(self, sample_portfolio_data):
         """Format portfolio stocks with quotes and news."""
         result = format_portfolio_news(sample_portfolio_data)
-        
+
         assert "## Portfolio Analysis" in result
         assert "### AAPL" in result
         assert "$185.5" in result  # Price (may not have trailing zero)
@@ -185,7 +184,7 @@ class TestFormatPortfolioNews:
     def test_shows_negative_changes(self, sample_portfolio_data):
         """Show negative change percentages."""
         result = format_portfolio_news(sample_portfolio_data)
-        
+
         assert "### MSFT" in result
         assert "-1.10%" in result
 
@@ -200,7 +199,7 @@ class TestFormatPortfolioNews:
             }
         }
         result = format_portfolio_news(data)
-        
+
         assert "Article 4" in result
         assert "Article 5" not in result
 
@@ -232,10 +231,10 @@ class TestResearchWithGemini:
         mock_result = Mock()
         mock_result.returncode = 0
         mock_result.stdout = "# Research Report\n\nMarket analysis..."
-        
+
         with patch("subprocess.run", return_value=mock_result) as mock_run:
             result = research_with_gemini("Market data content")
-            
+
             assert result == "# Research Report\n\nMarket analysis..."
             mock_run.assert_called_once()
 
@@ -244,10 +243,10 @@ class TestResearchWithGemini:
         mock_result = Mock()
         mock_result.returncode = 0
         mock_result.stdout = "Focused analysis"
-        
+
         with patch("subprocess.run", return_value=mock_result) as mock_run:
             result = research_with_gemini("content", focus_areas=["earnings", "macro"])
-            
+
             assert result == "Focused analysis"
             # Verify focus areas were in the prompt
             call_args = mock_run.call_args[0][0]
@@ -260,10 +259,10 @@ class TestResearchWithGemini:
         mock_result = Mock()
         mock_result.returncode = 1
         mock_result.stderr = "API error"
-        
+
         with patch("subprocess.run", return_value=mock_result):
             result = research_with_gemini("content")
-            
+
             assert "⚠️ Gemini research error" in result
             assert "API error" in result
 
@@ -271,14 +270,14 @@ class TestResearchWithGemini:
         """Handle subprocess timeout."""
         with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="gemini", timeout=120)):
             result = research_with_gemini("content")
-            
+
             assert "⚠️ Gemini research timeout" in result
 
     def test_handles_missing_gemini(self):
         """Handle missing gemini CLI."""
         with patch("subprocess.run", side_effect=FileNotFoundError()):
             result = research_with_gemini("content")
-            
+
             assert "⚠️ Gemini CLI not found" in result
 
 
@@ -288,7 +287,7 @@ class TestFormatRawDataReport:
     def test_combines_market_and_portfolio(self, sample_market_data, sample_portfolio_data):
         """Combine market data, headlines, and portfolio."""
         result = format_raw_data_report(sample_market_data, sample_portfolio_data)
-        
+
         assert "## Market Data" in result
         assert "## Current Headlines" in result
         assert "## Portfolio Analysis" in result
@@ -297,7 +296,7 @@ class TestFormatRawDataReport:
         """Handle market data without headlines."""
         market_data = {"markets": {"us": {"name": "US", "indices": {}}}}
         result = format_raw_data_report(market_data, sample_portfolio_data)
-        
+
         assert "## Market Data" in result
         assert "## Current Headlines" not in result
 
@@ -305,7 +304,7 @@ class TestFormatRawDataReport:
         """Skip portfolio with error."""
         portfolio_data = {"error": "No portfolio configured"}
         result = format_raw_data_report(sample_market_data, portfolio_data)
-        
+
         assert "## Portfolio Analysis" not in result
 
     def test_handles_empty_data(self):
@@ -322,7 +321,7 @@ class TestGenerateResearchContent:
         with patch("research.gemini_available", return_value=True):
             with patch("research.research_with_gemini", return_value="Gemini report") as mock_gemini:
                 result = generate_research_content(sample_market_data, sample_portfolio_data)
-                
+
                 assert result["report"] == "Gemini report"
                 assert result["source"] == "gemini"
                 mock_gemini.assert_called_once()
@@ -331,14 +330,14 @@ class TestGenerateResearchContent:
         """Fall back to raw report when Gemini unavailable."""
         with patch("research.gemini_available", return_value=False):
             result = generate_research_content(sample_market_data, sample_portfolio_data)
-            
+
             assert "## Market Data" in result["report"]
             assert result["source"] == "raw"
 
     def test_handles_empty_report(self):
         """Return empty when no data available."""
         result = generate_research_content({}, {})
-        
+
         assert result["report"] == ""
         assert result["source"] == "none"
 
@@ -348,7 +347,7 @@ class TestGenerateResearchContent:
         with patch("research.gemini_available", return_value=True):
             with patch("research.research_with_gemini", return_value="Report") as mock_gemini:
                 generate_research_content(sample_market_data, sample_portfolio_data, focus_areas=focus)
-                
+
                 mock_gemini.assert_called_once()
                 # Check that focus_areas was passed (positional or keyword)
                 call_args = mock_gemini.call_args

@@ -6,7 +6,6 @@ from argparse import Namespace
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
-from io import StringIO
 
 import pytest
 
@@ -14,16 +13,16 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from alerts import (
-    load_alerts,
-    save_alerts,
-    get_alert_by_ticker,
-    format_price,
+    SUPPORTED_CURRENCIES,
+    cmd_delete,
     cmd_list,
     cmd_set,
-    cmd_delete,
     cmd_snooze,
     cmd_update,
-    SUPPORTED_CURRENCIES,
+    format_price,
+    get_alert_by_ticker,
+    load_alerts,
+    save_alerts,
 )
 
 
@@ -76,7 +75,7 @@ class TestLoadAlerts:
         """Load alerts from existing file."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
         data = load_alerts()
-        
+
         assert "_meta" in data
         assert len(data["alerts"]) == 2
         assert data["alerts"][0]["ticker"] == "AAPL"
@@ -85,9 +84,9 @@ class TestLoadAlerts:
         """Return default structure when file doesn't exist."""
         missing_path = tmp_path / "missing.json"
         monkeypatch.setattr("alerts.ALERTS_FILE", missing_path)
-        
+
         data = load_alerts()
-        
+
         assert data["_meta"]["version"] == 1
         assert data["alerts"] == []
         assert "supported_currencies" in data["_meta"]
@@ -100,9 +99,9 @@ class TestSaveAlerts:
         """Save should update the updated_at field."""
         alerts_path = tmp_path / "alerts.json"
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_path)
-        
+
         save_alerts(sample_alerts_data)
-        
+
         saved = json.loads(alerts_path.read_text())
         assert "updated_at" in saved["_meta"]
 
@@ -110,9 +109,9 @@ class TestSaveAlerts:
         """Save should preserve all alert data."""
         alerts_path = tmp_path / "alerts.json"
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_path)
-        
+
         save_alerts(sample_alerts_data)
-        
+
         saved = json.loads(alerts_path.read_text())
         assert len(saved["alerts"]) == 2
         assert saved["alerts"][0]["ticker"] == "AAPL"
@@ -125,7 +124,7 @@ class TestGetAlertByTicker:
         """Find alert by ticker."""
         alerts = sample_alerts_data["alerts"]
         result = get_alert_by_ticker(alerts, "AAPL")
-        
+
         assert result is not None
         assert result["ticker"] == "AAPL"
         assert result["target_price"] == 150.0
@@ -134,7 +133,7 @@ class TestGetAlertByTicker:
         """Find alert regardless of case."""
         alerts = sample_alerts_data["alerts"]
         result = get_alert_by_ticker(alerts, "aapl")
-        
+
         assert result is not None
         assert result["ticker"] == "AAPL"
 
@@ -142,7 +141,7 @@ class TestGetAlertByTicker:
         """Return None for non-existent ticker."""
         alerts = sample_alerts_data["alerts"]
         result = get_alert_by_ticker(alerts, "GOOG")
-        
+
         assert result is None
 
 
@@ -185,18 +184,18 @@ class TestCmdList:
         alerts_path = tmp_path / "alerts.json"
         alerts_path.write_text(json.dumps({"_meta": {}, "alerts": []}))
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_path)
-        
+
         cmd_list(Namespace())
-        
+
         captured = capsys.readouterr()
         assert "No price alerts set" in captured.out
 
     def test_list_active_alerts(self, alerts_file, monkeypatch, capsys):
         """List active alerts."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         cmd_list(Namespace())
-        
+
         captured = capsys.readouterr()
         assert "Price Alerts" in captured.out
         assert "AAPL" in captured.out
@@ -214,9 +213,9 @@ class TestCmdList:
         alerts_path = tmp_path / "alerts.json"
         alerts_path.write_text(json.dumps(data))
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_path)
-        
+
         cmd_list(Namespace())
-        
+
         captured = capsys.readouterr()
         assert "Snoozed" in captured.out
         assert "AAPL" in captured.out
@@ -228,16 +227,16 @@ class TestCmdSet:
     def test_set_new_alert(self, alerts_file, monkeypatch, capsys):
         """Set a new alert."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         with patch("alerts.get_fetch_market_data") as mock_fmd:
             mock_fmd.return_value = Mock(return_value={"GOOG": {"price": 175.0}})
-            
+
             args = Namespace(ticker="GOOG", target=150.0, currency="USD", note="Buy Google", user="art")
             cmd_set(args)
-        
+
         captured = capsys.readouterr()
         assert "Alert set: GOOG" in captured.out
-        
+
         data = json.loads(alerts_file.read_text())
         goog = next((a for a in data["alerts"] if a["ticker"] == "GOOG"), None)
         assert goog is not None
@@ -246,30 +245,30 @@ class TestCmdSet:
     def test_set_duplicate_alert(self, alerts_file, monkeypatch, capsys):
         """Cannot set duplicate alert."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="AAPL", target=140.0, currency="USD", note="", user="")
         cmd_set(args)
-        
+
         captured = capsys.readouterr()
         assert "already exists" in captured.out
 
     def test_set_invalid_target(self, alerts_file, monkeypatch, capsys):
         """Reject invalid target price."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="GOOG", target=-10.0, currency="USD", note="", user="")
         cmd_set(args)
-        
+
         captured = capsys.readouterr()
         assert "must be greater than 0" in captured.out
 
     def test_set_invalid_currency(self, alerts_file, monkeypatch, capsys):
         """Reject invalid currency."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="GOOG", target=150.0, currency="XYZ", note="", user="")
         cmd_set(args)
-        
+
         captured = capsys.readouterr()
         assert "not supported" in captured.out
 
@@ -280,23 +279,23 @@ class TestCmdDelete:
     def test_delete_existing_alert(self, alerts_file, monkeypatch, capsys):
         """Delete an existing alert."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="AAPL")
         cmd_delete(args)
-        
+
         captured = capsys.readouterr()
         assert "Alert deleted: AAPL" in captured.out
-        
+
         data = json.loads(alerts_file.read_text())
         assert not any(a["ticker"] == "AAPL" for a in data["alerts"])
 
     def test_delete_nonexistent_alert(self, alerts_file, monkeypatch, capsys):
         """Cannot delete non-existent alert."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="GOOG")
         cmd_delete(args)
-        
+
         captured = capsys.readouterr()
         assert "No alert found" in captured.out
 
@@ -307,13 +306,13 @@ class TestCmdSnooze:
     def test_snooze_alert(self, alerts_file, monkeypatch, capsys):
         """Snooze an alert."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="AAPL", days=7)
         cmd_snooze(args)
-        
+
         captured = capsys.readouterr()
         assert "Alert snoozed: AAPL" in captured.out
-        
+
         data = json.loads(alerts_file.read_text())
         aapl = next(a for a in data["alerts"] if a["ticker"] == "AAPL")
         assert aapl["snooze_until"] is not None
@@ -321,20 +320,20 @@ class TestCmdSnooze:
     def test_snooze_nonexistent_alert(self, alerts_file, monkeypatch, capsys):
         """Cannot snooze non-existent alert."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="GOOG", days=7)
         cmd_snooze(args)
-        
+
         captured = capsys.readouterr()
         assert "No alert found" in captured.out
 
     def test_snooze_default_days(self, alerts_file, monkeypatch, capsys):
         """Default snooze is 7 days."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="AAPL", days=None)
         cmd_snooze(args)
-        
+
         captured = capsys.readouterr()
         assert "Alert snoozed" in captured.out
 
@@ -345,15 +344,15 @@ class TestCmdUpdate:
     def test_update_target_price(self, alerts_file, monkeypatch, capsys):
         """Update alert target price."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="AAPL", target=140.0, note=None)
         cmd_update(args)
-        
+
         captured = capsys.readouterr()
         assert "Alert updated: AAPL" in captured.out
         assert "$150.00" in captured.out  # Old price
         assert "$140.00" in captured.out  # New price
-        
+
         data = json.loads(alerts_file.read_text())
         aapl = next(a for a in data["alerts"] if a["ticker"] == "AAPL")
         assert aapl["target_price"] == 140.0
@@ -361,10 +360,10 @@ class TestCmdUpdate:
     def test_update_with_note(self, alerts_file, monkeypatch, capsys):
         """Update alert with new note."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="AAPL", target=145.0, note="New buy zone")
         cmd_update(args)
-        
+
         data = json.loads(alerts_file.read_text())
         aapl = next(a for a in data["alerts"] if a["ticker"] == "AAPL")
         assert aapl["note"] == "New buy zone"
@@ -372,19 +371,19 @@ class TestCmdUpdate:
     def test_update_nonexistent_alert(self, alerts_file, monkeypatch, capsys):
         """Cannot update non-existent alert."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="GOOG", target=150.0, note=None)
         cmd_update(args)
-        
+
         captured = capsys.readouterr()
         assert "No alert found" in captured.out
 
     def test_update_invalid_target(self, alerts_file, monkeypatch, capsys):
         """Reject invalid target price on update."""
         monkeypatch.setattr("alerts.ALERTS_FILE", alerts_file)
-        
+
         args = Namespace(ticker="AAPL", target=-10.0, note=None)
         cmd_update(args)
-        
+
         captured = capsys.readouterr()
         assert "must be greater than 0" in captured.out

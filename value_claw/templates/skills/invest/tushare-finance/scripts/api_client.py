@@ -5,13 +5,12 @@ Tushare API 客户端
 封装 Tushare Pro API，提供简洁易用的接口
 """
 
+import logging
 import os
+from typing import Dict, List, Optional
+
 import pandas as pd
 import tushare as ts
-from typing import Optional, List, Union, Dict
-from pathlib import Path
-import logging
-from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

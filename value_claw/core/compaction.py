@@ -163,7 +163,7 @@ def messages_to_text(messages: list[dict]) -> str:
 
 # ── JSON parsing helpers ──────────────────────────────────────────────────────
 
-import re as _re
+import re as _re  # noqa: E402
 
 _FENCE_RE = _re.compile(r"```(?:json)?\s*\n?(.*?)```", _re.DOTALL)
 _TRAILING_COMMA_RE = _re.compile(r",\s*([}\]])")

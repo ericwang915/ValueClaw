@@ -10,20 +10,20 @@ import os
 import re
 import subprocess
 import sys
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
 from difflib import SequenceMatcher
 from pathlib import Path
 
-import urllib.parse
-import urllib.request
 from utils import clamp_timeout, compute_deadline, ensure_venv, time_left
 
 ensure_venv()
 
-from fetch_news import PortfolioError, get_market_news, get_portfolio_movers, get_portfolio_news
-from ranking import rank_headlines
-from research import generate_research_content
+from fetch_news import PortfolioError, get_market_news, get_portfolio_movers, get_portfolio_news  # noqa: E402
+from ranking import rank_headlines  # noqa: E402
+from research import generate_research_content  # noqa: E402
 
 SCRIPT_DIR = Path(__file__).parent
 CONFIG_DIR = SCRIPT_DIR.parent / "config"
@@ -140,7 +140,7 @@ def shorten_url(url: str) -> str:
     """Shorten URL using is.gd service (GET request)."""
     if not url or len(url) < 30:  # Don't shorten short URLs
         return url
-        
+
     try:
         api_url = "https://is.gd/create.php"
         params = urllib.parse.urlencode({'format': 'simple', 'url': url})
@@ -148,7 +148,7 @@ def shorten_url(url: str) -> str:
             f"{api_url}?{params}",
             headers={"User-Agent": "Mozilla/5.0 (compatible; finance-news/1.0)"}
         )
-        
+
         # Set a short timeout - if it's slow, just use original
         with urllib.request.urlopen(req, timeout=3) as response:
             short_url = response.read().decode('utf-8').strip()
@@ -169,13 +169,13 @@ Your task: Analyze the provided market data and provide insights based ONLY on t
 def format_timezone_header() -> str:
     """Generate multi-timezone header showing NY, Berlin, Tokyo times."""
     from zoneinfo import ZoneInfo
-    
+
     now_utc = datetime.now(ZoneInfo("UTC"))
-    
+
     ny_time = now_utc.astimezone(ZoneInfo("America/New_York")).strftime("%H:%M")
     berlin_time = now_utc.astimezone(ZoneInfo("Europe/Berlin")).strftime("%H:%M")
     tokyo_time = now_utc.astimezone(ZoneInfo("Asia/Tokyo")).strftime("%H:%M")
-    
+
     return f"🌍 New York {ny_time} | Berlin {berlin_time} | Tokyo {tokyo_time}"
 
 
@@ -184,12 +184,12 @@ def format_disclaimer(language: str = "en") -> str:
     if language == "de":
         return """
 ---
-⚠️ **Haftungsausschluss:** Dieses Briefing dient ausschließlich Informationszwecken und stellt keine 
+⚠️ **Haftungsausschluss:** Dieses Briefing dient ausschließlich Informationszwecken und stellt keine
 Anlageberatung dar. Treffen Sie Ihre eigenen Anlageentscheidungen und führen Sie eigene Recherchen durch.
 """
     return """
 ---
-**Disclaimer:** This briefing is for informational purposes only and does not constitute 
+**Disclaimer:** This briefing is for informational purposes only and does not constitute
 financial advice. Always do your own research before making investment decisions."""
 
 
@@ -240,12 +240,12 @@ def load_config():
     """Load configuration."""
     config_path = CONFIG_DIR / "config.json"
     if config_path.exists():
-        with open(config_path, 'r') as f:
+        with open(config_path) as f:
             return json.load(f)
     legacy_path = CONFIG_DIR / "sources.json"
     if legacy_path.exists():
         print("⚠️ config/config.json missing; falling back to config/sources.json", file=sys.stderr)
-        with open(legacy_path, 'r') as f:
+        with open(legacy_path) as f:
             return json.load(f)
     raise FileNotFoundError("Missing config/config.json")
 
@@ -258,7 +258,7 @@ def load_translations(config: dict) -> dict:
     path = CONFIG_DIR / "translations.json"
     if path.exists():
         print("⚠️ translations missing from config.json; falling back to config/translations.json", file=sys.stderr)
-        with open(path, 'r') as f:
+        with open(path) as f:
             return json.load(f)
     return {}
 
@@ -721,7 +721,7 @@ def select_top_headlines(
     shortlist_size: int = HEADLINE_SHORTLIST_SIZE,
 ) -> tuple[list[dict], list[dict], str | None, str | None]:
     """Select top headlines using deterministic ranking.
-    
+
     Uses rank_headlines() for impact-based scoring with source caps and diversity.
     Falls back to LLM selection only if ranking produces no results.
     """
@@ -730,7 +730,7 @@ def select_top_headlines(
     selected = ranked.get("must_read", [])
     scan = ranked.get("scan", [])
     shortlist = selected + scan  # Combined for backwards compatibility
-    
+
     # If ranking produced no results, fall back to old grouping method
     if not selected:
         groups = group_headlines(headlines)
@@ -738,10 +738,10 @@ def select_top_headlines(
             group["score"] = score_headline_group(group)
         groups.sort(key=lambda g: g["score"], reverse=True)
         shortlist = groups[:shortlist_size]
-        
+
         if not shortlist:
             return [], [], None, None
-        
+
         # Use LLM to select from shortlist
         selected_ids: list[int] = []
         remaining = time_left(deadline)
@@ -749,7 +749,7 @@ def select_top_headlines(
             selected_ids = select_top_headline_ids(shortlist, deadline)
         if not selected_ids:
             selected_ids = list(range(1, min(TOP_HEADLINES_COUNT, len(shortlist)) + 1))
-        
+
         selected = []
         for idx in selected_ids:
             if 1 <= idx <= len(shortlist):
@@ -857,7 +857,7 @@ def translate_headlines(
 
     if isinstance(data, list) and all(isinstance(item, str) for item in data):
         if len(data) == len(titles):
-            print(f"  ↳ ✅ Translation successful", file=sys.stderr)
+            print("  ↳ ✅ Translation successful", file=sys.stderr)
             return data, True
         else:
             print(f"  ↳ Returned {len(data)} items, expected {len(titles)}", file=sys.stderr)
@@ -975,7 +975,7 @@ def summarize_with_gemini(
     deadline: float | None = None,
 ) -> str:
     """Generate AI summary using Gemini CLI."""
-    
+
     prompt = f"""{STYLE_PROMPTS.get(style, STYLE_PROMPTS['briefing'])}
 
 {LANG_PROMPTS.get(language, LANG_PROMPTS['de'])}
@@ -984,7 +984,7 @@ Here are the current market items:
 
 {content}
 """
-    
+
     try:
         proc_timeout = clamp_timeout(60, deadline)
         result = subprocess.run(
@@ -1001,7 +1001,7 @@ Here are the current market items:
             return reply
         else:
             return f"⚠️ Gemini error: {result.stderr}"
-    
+
     except subprocess.TimeoutExpired:
         return "⚠️ Gemini timeout"
     except TimeoutError:
@@ -1013,7 +1013,7 @@ Here are the current market items:
 def format_market_data(market_data: dict) -> str:
     """Format market data for the prompt."""
     lines = ["## Market Data\n"]
-    
+
     for region, data in market_data.get('markets', {}).items():
         lines.append(f"### {data['name']}")
         for symbol, idx in data.get('indices', {}).items():
@@ -1022,7 +1022,7 @@ def format_market_data(market_data: dict) -> str:
                 change_pct = idx['data'].get('change_percent', 0)
                 lines.append(f"- {idx['name']}: {price} ({change_pct:+.2f}%)")
         lines.append("")
-    
+
     return '\n'.join(lines)
 
 
@@ -1063,13 +1063,13 @@ def format_sources(headlines: list, labels: dict) -> str:
             extra_links = article.get("links")
             if isinstance(extra_links, (list, set, tuple)):
                 links.extend([str(item).strip() for item in extra_links if str(item).strip()])
-        
+
         # Use first unique link and shorten it
         unique_links = sorted(set(links))
         if unique_links:
             short_link = shorten_url(unique_links[0])
             lines.append(f"[{idx}] {short_link}")
-            
+
     return "\n".join(lines)
 
 
@@ -1221,10 +1221,10 @@ def build_briefing_summary(
     heading_reco = labels.get("heading_watchpoints", "Watchpoints")
     no_data = labels.get("no_data", "No data available")
     no_movers = labels.get("no_movers", "No significant moves (±1%)")
-    rec_bullish = labels.get("rec_bullish", "Selective opportunities, keep risk management tight.")
-    rec_bearish = labels.get("rec_bearish", "Reduce risk and prioritize liquidity.")
-    rec_neutral = labels.get("rec_neutral", "Wait-and-see, focus on quality names.")
-    rec_unknown = labels.get("rec_unknown", "No clear recommendation without reliable data.")
+    labels.get("rec_bullish", "Selective opportunities, keep risk management tight.")
+    labels.get("rec_bearish", "Reduce risk and prioritize liquidity.")
+    labels.get("rec_neutral", "Wait-and-see, focus on quality names.")
+    labels.get("rec_unknown", "No clear recommendation without reliable data.")
 
     sentiment_map = labels.get("sentiment_map", {})
     sentiment_display = sentiment_map.get(sentiment, sentiment)
@@ -1266,7 +1266,6 @@ def build_briefing_summary(
                 change = idx_data.get("change_percent")
                 name = idx.get("name", symbol)
                 if price is not None and change is not None:
-                    emoji = "📈" if change >= 0 else "📉"
                     region_indices.append(f"{name}: {price:,.0f} ({change:+.2f}%)")
             if region_indices:
                 lines.append(f"• {' | '.join(region_indices)}")
@@ -1313,7 +1312,7 @@ def build_briefing_summary(
     portfolio_csv = CONFIG_DIR / "portfolio.csv"
     if portfolio_csv.exists():
         import csv
-        with open(portfolio_csv, 'r') as f:
+        with open(portfolio_csv) as f:
             for row in csv.DictReader(f):
                 sym_key = row.get('symbol', '').strip().upper()
                 if sym_key:
@@ -1354,10 +1353,10 @@ def generate_briefing(args):
     if fast_mode:
         rss_timeout = int(os.environ.get("FINANCE_NEWS_RSS_TIMEOUT_FAST_SEC", "8"))
         subprocess_timeout = int(os.environ.get("FINANCE_NEWS_SUBPROCESS_TIMEOUT_FAST_SEC", "15"))
-    
+
     # Fetch fresh data
     print("📡 Fetching market data...", file=sys.stderr)
-    
+
     # Get market overview
     headline_limit = 10 if fast_mode else 15
     market_data = get_market_news(
@@ -1390,7 +1389,7 @@ def generate_briefing(args):
         deadline=headline_deadline,
         shortlist_size=shortlist_size,
     )
-    
+
     # Get portfolio news (limit stocks for performance)
     portfolio_deadline_sec = int(config.get("portfolio_deadline_sec", 360))
     portfolio_deadline = compute_deadline(max(deadline_sec, portfolio_deadline_sec))
@@ -1418,7 +1417,7 @@ def generate_briefing(args):
     except Exception as exc:
         print(f"⚠️ Skipping portfolio movers: {exc}", file=sys.stderr)
         movers = []
-    
+
     # Build raw content for summarization
     content_parts = []
 
@@ -1541,11 +1540,11 @@ def generate_briefing(args):
                 "summary_model_used": summary_used,
                 "summary_model_attempts": summary_list,
             })
-    
+
     # Format output
     now = datetime.now()
     time_str = now.strftime("%H:%M")
-    
+
     date_str = now.strftime("%A, %d. %B %Y")
     if language == "de":
         months = labels.get("months", {})
@@ -1569,7 +1568,7 @@ def generate_briefing(args):
     prefix = labels.get("title_prefix", "Market")
     time_suffix = labels.get("time_suffix", "")
     timezone_header = format_timezone_header()
-    
+
     # Message 1: Macro
     macro_output = f"""{emoji} **{prefix} {title}**
 {date_str} | {time_str} {time_suffix}
@@ -1596,7 +1595,7 @@ def generate_briefing(args):
             portfolio_csv = CONFIG_DIR / "portfolio.csv"
             if portfolio_csv.exists():
                 import csv
-                with open(portfolio_csv, 'r') as f:
+                with open(portfolio_csv) as f:
                     for row in csv.DictReader(f):
                         sym_key = row.get('symbol', '').strip().upper()
                         if sym_key:
@@ -1670,14 +1669,14 @@ def generate_briefing(args):
                     lines.append(f"[{src['idx']}] {short_link}")
 
             portfolio_output = "\n".join(lines)
-            
+
             # If not JSON output, we might want to print a delimiter
             if not args.json:
                 # For stdout, we just print them separated by newline if not handled by briefing.py splitting
                 # But briefing.py needs to know to split.
                 # We'll use a delimiter that briefing.py can look for.
                 pass
-        
+
     write_debug_once()
 
     if args.json:
