@@ -14,8 +14,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -171,3 +171,11 @@ context/
 # Daemon state
 .value_claw/
 Gemini_Generated_Image_*
+
+# Skill generated data / caches
+**/skills/**/cache/
+**/skills/**/research/
+**/skills/**/config/portfolio.csv
+
+# Ad-hoc test scripts
+get_tesla_news.py

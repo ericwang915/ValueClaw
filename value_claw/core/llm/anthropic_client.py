@@ -15,26 +15,48 @@ from .base import LLMProvider
 from .response import MockChoice, MockFunction, MockMessage, MockResponse, MockToolCall
 
 
+_OAUTH_BETAS = ",".join([
+    "claude-code-20250219",
+    "oauth-2025-04-20",
+    "fine-grained-tool-streaming-2025-05-14",
+    "interleaved-thinking-2025-05-14",
+])
+
+_OAUTH_SYSTEM_PREFIX = "You are Claude Code, Anthropic's official CLI for Claude."
+
+
 class AnthropicProvider(LLMProvider):
-    """Anthropic Claude provider with API key or setup-token support.
+    """Anthropic Claude provider with API key or OAuth token support.
 
     Supports all authentication methods:
-    - Standard API key (``sk-ant-...``)
-    - Setup token (from ``claude setup-token``, long-lived session token)
+    - Standard API key (``sk-ant-api03-...``) → uses ``x-api-key`` header
+    - OAuth token (``sk-ant-oat01-...``) → uses ``Authorization: Bearer`` +
+      required ``anthropic-beta`` headers and Claude Code identity
     - Environment variable ``ANTHROPIC_API_KEY``
     """
 
     supports_images = True
 
     def __init__(self, api_key: str, model_name: str = "claude-sonnet-4-20250514"):
-        self.client = anthropic.Anthropic(
-            api_key=api_key,
-            timeout=300.0,
-        )
+        self._is_oauth = "oat" in api_key[:20]
+        client_kwargs: dict[str, Any] = {"timeout": 300.0}
+
+        if self._is_oauth:
+            client_kwargs["api_key"] = None
+            client_kwargs["auth_token"] = api_key
+            client_kwargs["default_headers"] = {
+                "accept": "application/json",
+                "anthropic-dangerous-direct-browser-access": "true",
+                "anthropic-beta": _OAUTH_BETAS,
+                "user-agent": "claude-cli/2.1.75",
+                "x-app": "cli",
+            }
+        else:
+            client_kwargs["api_key"] = api_key
+
+        self.client = anthropic.Anthropic(**client_kwargs)
         self.model_name = model_name
-        self._auth_type = (
-            "setup-token" if not api_key.startswith("sk-ant-") else "api-key"
-        )
+        self._auth_type = "oauth" if self._is_oauth else "api-key"
 
     # ── shared helpers ────────────────────────────────────────────────────
 
@@ -109,8 +131,20 @@ class AnthropicProvider(LLMProvider):
             "messages": filtered_messages,
             "max_tokens": max_tokens,
         }
-        if system_prompt:
+
+        if self._is_oauth:
+            sys_blocks: list[dict] = [
+                {"type": "text", "text": _OAUTH_SYSTEM_PREFIX},
+            ]
+            if system_prompt:
+                sys_blocks.append({"type": "text", "text": system_prompt})
+            api_kwargs["system"] = sys_blocks
+            api_kwargs["thinking"] = {"type": "enabled", "budget_tokens": 10240}
+            api_kwargs["temperature"] = 1
+            api_kwargs["max_tokens"] = max(max_tokens, 16384)
+        elif system_prompt:
             api_kwargs["system"] = system_prompt
+
         if anthropic_tools:
             api_kwargs["tools"] = anthropic_tools
             if tool_choice == "required":
@@ -161,6 +195,7 @@ class AnthropicProvider(LLMProvider):
                         arguments=json.dumps(block.input),
                     ),
                 ))
+            # skip "thinking" blocks — internal reasoning, not user-facing
 
         return self._response_from_blocks(content_text, tool_calls)
 
@@ -200,6 +235,7 @@ class AnthropicProvider(LLMProvider):
                     elif delta.type == "input_json_delta":
                         if current_tool is not None:
                             current_tool["args"] += delta.partial_json
+                    # skip thinking_delta — internal reasoning
                 elif event.type == "content_block_stop":
                     if current_tool is not None:
                         tool_calls.append(MockToolCall(

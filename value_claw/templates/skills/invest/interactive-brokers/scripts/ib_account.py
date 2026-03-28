@@ -16,12 +16,12 @@ Usage:
 """
 
 import argparse
-import os
 import sys
+import os
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ib_helpers import add_connection_args, connect_ib, fmt_currency, fmt_number, fmt_pct, now_str, print_table
+from ib_helpers import add_connection_args, connect_ib, fmt_currency, fmt_pct, fmt_number, print_table, now_str
 
 
 def cmd_summary(args):

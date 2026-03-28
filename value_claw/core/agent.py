@@ -49,6 +49,7 @@ from .tools import (
     MULTI_SEARCH_TOOL,
     PRIMITIVE_TOOLS,
     SKILL_TOOLS,
+    STRATEGY_TOOLS,
     WEB_SEARCH_TOOL,
     configure_venv,
     set_sandbox,
@@ -122,7 +123,7 @@ class Agent:
     """
 
     MAX_TOOL_ROUNDS = 12
-    MAX_PARALLEL_SKILLS = 5
+    MAX_PARALLEL_SKILLS = 30
     TOOL_TIMEOUT = 300
 
     def __init__(
@@ -206,7 +207,7 @@ class Agent:
         self.loaded_skill_names: set[str] = set()
         self.pending_injections: list[str] = []
         self.MAX_PARALLEL_SKILLS = config.get_int(
-            "agent", "maxParallelSkills", default=5,
+            "agent", "maxParallelSkills", default=30,
         )
         self._bg_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="agent-bg")
 
@@ -316,26 +317,82 @@ class Agent:
         except Exception:
             pass
 
-        system_msg = f"""You are value_claw — a world-class AI **investment analyst** modeled after the best investors (Buffett's discipline, Dalio's risk parity, Soros's macro awareness, Lynch's growth-at-a-reasonable-price).{bot_name}{soul_section}{persona_section}{tools_section}
+        system_msg = f"""You are value_claw — a world-class AI **strategy orchestrator** modeled after the best investors (Buffett's discipline, Dalio's risk parity, Soros's macro awareness, Lynch's growth-at-a-reasonable-price).{bot_name}{soul_section}{persona_section}{tools_section}
 
-### Your Role: Investment Analyst & Advisor
-Research-driven analyst helping users analyze markets, evaluate securities, and
-make informed decisions. You do NOT execute trades.
+### Your Role: Strategy Orchestrator
+You do NOT execute individual trades directly. Instead, you manage **trading strategies** —
+autonomous programs that analyze markets and generate trade signals on a schedule.
 
-Core competencies: fundamental analysis (DCF, multiples, FCF), technical analysis,
-risk assessment, macro intelligence, portfolio guidance (sizing, diversification,
-entry/exit timing). Apply GARP principles; always identify moats and margin of safety.
+Your responsibilities:
+1. **Select** the right strategy for current market conditions
+2. **Start / stop / switch** strategies based on macro context and portfolio goals
+3. **Monitor** strategy performance, portfolio health, and pending trades
+4. **Approve or reject** trades from strategies running in approval mode
+5. **Advise** the user on which strategies to deploy and when
+
+### Investment Philosophy
+**1. Strategy Selection**
+- Match strategies to market regimes: trending → momentum, mean-reverting → value
+- Consider correlation between strategies: diversify approaches, not just assets
+- Each strategy should have a clear edge and well-defined risk parameters
+
+**2. Risk Management**
+- Position sizing is controlled per strategy via its parameters
+- Monitor portfolio-level concentration across all active strategies
+- Stop strategies whose thesis is invalidated by changing conditions
+
+**3. Portfolio Oversight**
+- Cash is a position — maintain intentional cash levels
+- Track aggregate performance vs benchmark (SPY for stocks, BTC for crypto)
+- Rebalance strategy allocations based on performance and conviction
+
+**4. Market Intelligence**
+- Use skills and web_search to stay informed (news, sentiment, macro)
+- Feed market context to strategy decisions: when to start/stop/switch
 
 ### Tools
 
+**Strategy Management** (your primary tools):
+- `strategy_list` — list all registered strategies and their status
+- `strategy_create(...)` — register a new strategy (script, prompt, or n8n type)
+- `strategy_start(id)` — start a strategy (registers cron, begins execution)
+- `strategy_stop(id)` — stop a strategy (removes cron schedule)
+- `strategy_switch(from_id, to_id)` — atomically stop one, start another
+- `strategy_status(id)` — detailed view: recent trades, pending, last run
+- `strategy_update(id, ...)` — modify schedule, mode, parameters
+- `strategy_delete(id)` — remove a stopped strategy
+- `strategy_trigger(id)` — run a strategy once immediately (for testing)
+- `strategy_pending` — list trades awaiting approval
+- `strategy_approve(trade_id)` — approve a pending trade (executes it)
+- `strategy_reject(trade_id)` — reject a pending trade
+
 **Primitives**: `run_command`, `read_file`, `write_file`, `list_files`
 
-**Skills** — call `use_skill(name)` to activate. Catalog:
+**Skills** (progressive disclosure — metadata below, call `use_skill(name)` to load full instructions):
 {skill_catalog}
+
+**SKILL USAGE RULES**:
+- The catalog above is Level 1 metadata only (~100 tokens/skill). Full instructions load on-demand.
+- **ALWAYS call `use_skill(name)` BEFORE attempting any skill-related task.** The catalog description tells you WHEN to activate; the loaded instructions tell you HOW.
+- Load multiple relevant skills in parallel when a task spans domains (e.g. `use_skill("stock-analysis")` + `use_skill("technical_analysis")` for a full stock review).
+- After activation, follow the skill's instructions precisely — they contain scripts, APIs, and workflows.
+- Skill resources (scripts, references) are Level 3 — access via `read_file` / `run_command` as the instructions direct.
 
 **Memory**: `remember(key,val)`, `recall(query)`, `memory_get(path)`, `memory_list_files()`, `forget(key)`, `update_index(content)`
 
 **Skill creation**: `create_skill` — create reusable skills when none fit{web_search_section}
+
+### Strategy Management Workflow
+1. **Choose strategy**: Review available strategies with `strategy_list`, or create a new one
+2. **Configure**: Set execution_mode ('auto' for hands-free, 'approval' for review)
+3. **Start**: Call `strategy_start(id)` to begin scheduled execution
+4. **Monitor**: Check `strategy_status(id)` for recent signals and pending trades
+5. **Review**: If using approval mode, review pending trades with `strategy_pending` and approve/reject
+
+**Strategy types**:
+- **prompt**: An LLM prompt template executed on schedule.
+- **script**: A Python script that outputs JSON trade signals.
+- **n8n**: An n8n workflow triggered via webhook.
 
 ### Task Execution Modes
 
@@ -347,47 +404,23 @@ entry/exit timing). Apply GARP principles; always identify moats and margin of s
 3. Summarize each step before proceeding
 4. Synthesize a final answer
 
-### Response Style — Be Clear, Not Dense
-
-**Formatting principles:**
-- Use whitespace generously — add blank lines between sections
-- Use headers (##, ###) to organize longer responses
-- Use bullet points over dense paragraphs
-- Use emoji sparingly but effectively (📈 📉 ⚠️ ✅ 💡) to aid scanning
-- Keep paragraphs short (2-3 sentences max)
-- Bold **key numbers** and **important takeaways**
-
-**For stock/market analysis, use this structure:**
-```
-## [Ticker] — One-Line Verdict
-
-📊 Key Numbers
-• Price / Market Cap / P/E — spaced out, easy to scan
-
-💡 What's Happening (2-3 bullets, plain language)
-
-⚠️ Risks (brief)
-
-🎯 Bottom Line: clear, actionable conclusion
-```
-
-**Tone:**
-- Conversational and confident, not robotic or overly formal
-- Explain financial concepts simply — assume smart but not expert
-- Give your opinion, don't just dump data
-- "Here's what matters" > "The following metrics are noteworthy"
-
-**Language:** ALWAYS reply in the same language as the user.
-
 ### Rules
-- Prefer `multi_search` over sequential `web_search` for 2+ queries.
+- **ALWAYS prefer `multi_search` over sequential `web_search` calls** for 2+ queries.
 - Use `topic="finance"` in web search for market data.
-- Batch independent tool calls (parallel execution). Minimize search rounds (1-3).
-- Proactively `remember` theses, risk tolerance, key decisions. Use `recall` for context.
-- Memory auto-loads at session start. INDEX.md = curated system info.
-- Files go in `~/.value_claw/context/files/`. Use function calling API only.
-- NO trade execution — analysis and recommendations only.
-- Don't mention tools/skills or list capabilities unless asked.
+- Batch independent tool calls in one response (parallel execution).
+- Minimize search rounds (1-3 max). Combine queries.
+- Proactively `remember` investment theses, user's risk tolerance, and key decisions.
+- Use `recall` for past context, portfolio decisions, and thesis tracking.
+- Memory is auto-loaded at session start. INDEX.md = curated system info.
+- All files go in `~/.value_claw/context/files/`.
+- NEVER output tool calls as XML or text. Use function calling API.
+
+### Response Guidelines
+- **Language matching**: ALWAYS reply in the SAME language as the user.
+- Answer directly and concisely. Under 300 words when possible.
+- For investment analysis, structure as: **Thesis → Key Metrics → Risks → Conclusion**.
+- Do NOT mention tools/skills unless asked.
+- Do NOT list capabilities at the end of responses.
 - Include a brief disclaimer for specific securities recommendations.
 """
         # ── Auto-inject memory context ────────────────────────────────────
@@ -494,7 +527,7 @@ Don't repeat this if `bot_name` already exists in memory.
     def _build_tools(self) -> list[dict]:
         """Assemble the full tool schema list for the current session."""
         tools = (PRIMITIVE_TOOLS + SKILL_TOOLS + META_SKILL_TOOLS
-                 + MEMORY_TOOLS)
+                 + MEMORY_TOOLS + STRATEGY_TOOLS)
         if self._web_search_enabled:
             tools = tools + [WEB_SEARCH_TOOL, MULTI_SEARCH_TOOL]
         if self.rag:
@@ -590,6 +623,16 @@ Don't repeat this if `bot_name` already exists in memory.
                     result += f"\n\nPrefect UI: {self._cron_manager.prefect_ui_url}"
                 else:
                     result = f"No runs found for '{args.get('job_id')}'."
+            elif func_name == "strategy_start":
+                result = self._strategy_start(args.get("strategy_id", ""))
+            elif func_name == "strategy_stop":
+                result = self._strategy_stop(args.get("strategy_id", ""))
+            elif func_name == "strategy_switch":
+                stop_result = self._strategy_stop(args.get("from_id", ""))
+                start_result = self._strategy_start(args.get("to_id", ""))
+                result = json.dumps({"stop": stop_result, "start": start_result}, ensure_ascii=False)
+            elif func_name == "strategy_trigger":
+                result = self._strategy_trigger(args.get("strategy_id", ""))
             elif func_name == "create_skill":
                 result = AVAILABLE_TOOLS["create_skill"](**args)
                 self._refresh_skill_registry()
@@ -605,6 +648,58 @@ Don't repeat this if `bot_name` already exists in memory.
             logger.debug("Result: %s", preview)
 
         return str(result)
+
+    # ── Strategy lifecycle helpers ──────────────────────────────────────────
+
+    def _strategy_start(self, strategy_id: str) -> str:
+        """Start a strategy — register its cron job with the scheduler."""
+        from .strategy import get_strategy, set_strategy_status
+        strat = get_strategy(strategy_id)
+        if not strat:
+            return json.dumps({"ok": False, "error": f"Strategy '{strategy_id}' not found."})
+        if strat.status == "running":
+            return json.dumps({"ok": False, "error": f"Strategy '{strategy_id}' is already running."})
+
+        if self._cron_manager:
+            try:
+                self._cron_manager.register_strategy_job(strategy_id, strat.schedule)
+            except Exception as exc:
+                return json.dumps({"ok": False, "error": f"Failed to register cron job: {exc}"})
+
+        set_strategy_status(strategy_id, "running")
+        return json.dumps({"ok": True, "strategy_id": strategy_id, "status": "running",
+                           "schedule": strat.schedule})
+
+    def _strategy_stop(self, strategy_id: str) -> str:
+        """Stop a strategy — remove its cron job."""
+        from .strategy import get_strategy, set_strategy_status
+        strat = get_strategy(strategy_id)
+        if not strat:
+            return json.dumps({"ok": False, "error": f"Strategy '{strategy_id}' not found."})
+        if strat.status == "stopped":
+            return json.dumps({"ok": False, "error": f"Strategy '{strategy_id}' is already stopped."})
+
+        if self._cron_manager:
+            try:
+                self._cron_manager.remove_strategy_job(strategy_id)
+            except Exception:
+                pass
+
+        set_strategy_status(strategy_id, "stopped")
+        return json.dumps({"ok": True, "strategy_id": strategy_id, "status": "stopped"})
+
+    def _strategy_trigger(self, strategy_id: str) -> str:
+        """Trigger a single run of a strategy."""
+        if not self._cron_manager:
+            return json.dumps({"ok": False, "error": "Scheduler not available."})
+        import asyncio as _aio
+        try:
+            loop = _aio.get_event_loop()
+            result = loop.run_until_complete(
+                self._cron_manager.trigger_strategy(strategy_id))
+        except RuntimeError:
+            result = _aio.run(self._cron_manager.trigger_strategy(strategy_id))
+        return result
 
     # ── Skill registry refresh (after create_skill) ────────────────────────
 

@@ -171,23 +171,6 @@ class DiscordBot:
             if content.startswith("!clear_files"):
                 await self._cmd_clear_files(message)
                 return
-            if content.startswith("!portfolio"):
-                arg = content[len("!portfolio"):].strip()
-                await self._cmd_portfolio(message, arg)
-                return
-            if content.startswith("!mode"):
-                arg = content[len("!mode"):].strip()
-                await self._cmd_mode(message, arg)
-                return
-            if content.startswith("!topup"):
-                arg = content[len("!topup"):].strip()
-                await self._cmd_topup(message, arg)
-                return
-            if content.startswith("!cashout"):
-                arg = content[len("!cashout"):].strip()
-                await self._cmd_cashout(message, arg)
-                return
-
             chat_input = content or ""
             if has_image:
                 chat_input = await self._build_image_input(
@@ -293,75 +276,6 @@ class DiscordBot:
             result = f"Compaction failed: {exc}"
         for chunk in self._split_message(result or "(no result)"):
             await message.reply(chunk)
-
-    # ── Portfolio commands ─────────────────────────────────────────────────────
-
-    async def _cmd_portfolio(self, message: discord.Message, arg: str) -> None:
-        from ..core.portfolio import get_status, switch_portfolio
-        arg = arg.strip().lower()
-        if arg in ("us-stocks", "crypto"):
-            result = switch_portfolio(arg)
-            if result.get("ok"):
-                await message.reply(f"Switched to {arg}. Mode: {result['active_mode']}")
-            else:
-                await message.reply(f"Error: {result.get('error')}")
-            return
-
-        status = get_status()
-        lines = [
-            "\U0001f4bc **Portfolio Status**",
-            f"Active: **{status['active_portfolio']}**",
-            f"Mode: **{status['active_mode']}**",
-            "",
-        ]
-        for pid, pinfo in status["portfolios"].items():
-            marker = " \u25c0" if pid == status["active_portfolio"] else ""
-            lines.append(f"**{pinfo['name']}**{marker}")
-            for mode_name in ("simulate", "live"):
-                t = pinfo["tracks"][mode_name]
-                tag = "SIM" if mode_name == "simulate" else "LIVE"
-                lines.append(f"  [{tag}] Cash: ${t['cash_balance']:,.2f} | {t['holdings_count']} holdings | Cost: ${t['total_cost']:,.2f}")
-            lines.append("")
-        await message.reply("\n".join(lines))
-
-    async def _cmd_mode(self, message: discord.Message, arg: str) -> None:
-        from ..core.portfolio import switch_mode
-        arg = arg.strip().lower()
-        if arg not in ("live", "simulate"):
-            await message.reply("Usage: `!mode <live|simulate>`")
-            return
-        result = switch_mode(arg)
-        if result.get("ok"):
-            emoji = "\U0001f534" if arg == "live" else "\U0001f7e2"
-            await message.reply(f"{emoji} Mode switched to **{arg.upper()}**")
-        else:
-            await message.reply(f"Error: {result.get('error')}")
-
-    async def _cmd_topup(self, message: discord.Message, arg: str) -> None:
-        from ..core.portfolio import top_up
-        try:
-            amount = float(arg.strip())
-        except (ValueError, TypeError):
-            await message.reply("Usage: `!topup <amount>`")
-            return
-        result = top_up(amount)
-        if result.get("ok"):
-            await message.reply(f"\U0001f4b0 Topped up ${amount:,.2f} to {result['portfolio']}/{result['mode']}. Balance: ${result['cash_balance']:,.2f}")
-        else:
-            await message.reply(f"Error: {result.get('error')}")
-
-    async def _cmd_cashout(self, message: discord.Message, arg: str) -> None:
-        from ..core.portfolio import cash_out
-        try:
-            amount = float(arg.strip())
-        except (ValueError, TypeError):
-            await message.reply("Usage: `!cashout <amount>`")
-            return
-        result = cash_out(amount)
-        if result.get("ok"):
-            await message.reply(f"\U0001f4b8 Withdrew ${amount:,.2f} from {result['portfolio']}/{result['mode']}. Balance: ${result['cash_balance']:,.2f}")
-        else:
-            await message.reply(f"Error: {result.get('error')}")
 
     async def _handle_chat(
         self,

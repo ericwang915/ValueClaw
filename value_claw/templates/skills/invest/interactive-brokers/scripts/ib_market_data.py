@@ -16,16 +16,18 @@ Usage:
 """
 
 import argparse
-import os
+import json
 import sys
+import os
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ib_helpers import add_connection_args, connect_ib, fmt_currency, fmt_number, fmt_pct, now_str, print_table
+from ib_helpers import add_connection_args, connect_ib, fmt_currency, fmt_pct, fmt_number, print_table, now_str
 
 
 def _make_contract(args):
     """Build a contract from args."""
-    from ib_insync import Forex, Future, Stock
+    from ib_insync import Stock, Future, Forex
 
     sec_type = getattr(args, "sec_type", "STK").upper()
     symbol = args.symbol
@@ -119,8 +121,8 @@ def cmd_history(args):
         print(f"    Duration: {args.duration}, Bar: {bar_size}, Type: {args.data_type}\n")
 
         if args.output == "json":
-            from ib_insync import util  # noqa: E402
-            df = util.df(bars)
+            import pandas as pd
+            df = ib_insync_util_df(bars)
             print(df.to_json(orient="records", indent=2, date_format="iso"))
             return
 
@@ -219,8 +221,8 @@ def _show_chain_detail(ib, underlying, chain, expiry, args):
         if len(contracts) < 2:
             continue
 
-        ib.reqMktData(contracts[0], snapshot=True)
-        ib.reqMktData(contracts[1], snapshot=True)
+        call_ticker = ib.reqMktData(contracts[0], snapshot=True)
+        put_ticker = ib.reqMktData(contracts[1], snapshot=True)
 
     ib.sleep(3)
 

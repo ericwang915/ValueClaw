@@ -385,6 +385,7 @@ class MLflowScheduler:
 
         static_count = self.load_and_register_jobs()
         dynamic_count = self._register_dynamic_jobs()
+        self._register_portfolio_snapshot_job()
         total = static_count + dynamic_count
 
         if total == 0:
@@ -396,7 +397,32 @@ class MLflowScheduler:
             static_count, dynamic_count, self.mlflow_ui_url,
         )
 
+    def _register_portfolio_snapshot_job(self) -> None:
+        """Register a built-in job that snapshots all portfolio values periodically."""
+        from .. import config as _cfg
+        cron_expr = _cfg.get_str("mlflow", "snapshotCron", default="0 */4 * * *")
 
+        async def _portfolio_snapshot_task():
+            logger.info("[MLflowScheduler] Running portfolio snapshot job")
+            loop = asyncio.get_event_loop()
+            try:
+                from ..core.portfolio import take_all_snapshots
+                count = await loop.run_in_executor(None, take_all_snapshots)
+                logger.info("[MLflowScheduler] Portfolio snapshots taken: %d", count)
+            except Exception as exc:
+                logger.error("[MLflowScheduler] Portfolio snapshot error: %s", exc)
+
+        try:
+            trigger = _parse_cron(cron_expr)
+            self._scheduler.add_job(
+                _portfolio_snapshot_task,
+                trigger=trigger,
+                id="__portfolio_snapshot",
+                replace_existing=True,
+            )
+            logger.info("[MLflowScheduler] Portfolio snapshot job registered: cron='%s'", cron_expr)
+        except Exception as exc:
+            logger.warning("[MLflowScheduler] Failed to register portfolio snapshot job: %s", exc)
 
     def stop(self) -> None:
         """Stop APScheduler and MLflow server."""

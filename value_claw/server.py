@@ -46,9 +46,8 @@ async def start_channels(
     """
     global _scheduler
 
-    # DB disabled — value_claw is now an analysis-only agent
-    # from .db import init_db
-    # init_db()
+    from .db import init_db
+    init_db()
 
     store = SessionStore()
     session_manager = SessionManager(agent_factory=lambda sid: None, store=store)

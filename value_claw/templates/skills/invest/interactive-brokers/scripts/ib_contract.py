@@ -15,11 +15,12 @@ Usage:
 """
 
 import argparse
-import os
 import sys
+import os
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ib_helpers import add_connection_args, connect_ib, now_str, print_table
+from ib_helpers import add_connection_args, connect_ib, fmt_currency, print_table, now_str
 
 
 def cmd_search(args):
@@ -51,7 +52,7 @@ def cmd_search(args):
 
 def cmd_details(args):
     """Get detailed contract information."""
-    from ib_insync import Forex, Future, Option, Stock
+    from ib_insync import Stock, Option, Future, Forex, Contract
 
     sec_type = args.sec_type.upper()
 

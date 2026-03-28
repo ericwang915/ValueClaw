@@ -145,13 +145,7 @@ class TelegramBot:
             "  /reset          \u2014 start a fresh session\n"
             "  /status         \u2014 show session info\n"
             "  /compact [hint] \u2014 compact conversation history\n"
-            "  /clear_files    \u2014 delete all downloaded files\n\n"
-            "Portfolio:\n"
-            "  /portfolio      \u2014 show portfolio status\n"
-            "  /portfolio <id> \u2014 switch portfolio (us-stocks / crypto)\n"
-            "  /mode <mode>    \u2014 switch mode (live / simulate)\n"
-            "  /topup <amt>    \u2014 add cash to active portfolio\n"
-            "  /cashout <amt>  \u2014 withdraw cash"
+            "  /clear_files    \u2014 delete all downloaded files"
         )
 
     async def _cmd_reset(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -199,87 +193,6 @@ class TelegramBot:
         from .. import config as _cfg
         count = _cfg.clear_files()
         await update.message.reply_text(f"Cleared {count} file(s) from the downloads folder.")
-
-    # ── Portfolio commands ─────────────────────────────────────────────────────
-
-    async def _cmd_portfolio(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show current portfolio status or switch portfolio: /portfolio [us-stocks|crypto]"""
-        if not await self._check_access(update, context):
-            return
-        from ..core.portfolio import get_status, switch_portfolio
-        arg = " ".join(context.args).strip().lower() if context.args else ""
-        if arg in ("us-stocks", "crypto"):
-            result = switch_portfolio(arg)
-            if result.get("ok"):
-                await update.message.reply_text(f"Switched to {arg}. Mode: {result['active_mode']}")
-            else:
-                await update.message.reply_text(f"Error: {result.get('error')}")
-            return
-
-        status = get_status()
-        lines = [
-            "\U0001f4bc Portfolio Status",
-            f"  Active: {status['active_portfolio']}",
-            f"  Mode: {status['active_mode']}",
-            "",
-        ]
-        for pid, pinfo in status["portfolios"].items():
-            marker = " \u25c0" if pid == status["active_portfolio"] else ""
-            lines.append(f"{pinfo['name']}{marker}")
-            for mode_name in ("simulate", "live"):
-                t = pinfo["tracks"][mode_name]
-                tag = "SIM" if mode_name == "simulate" else "LIVE"
-                lines.append(f"  [{tag}] Cash: ${t['cash_balance']:,.2f} | {t['holdings_count']} holdings | Cost: ${t['total_cost']:,.2f}")
-            lines.append("")
-        await update.message.reply_text("\n".join(lines))
-
-    async def _cmd_mode(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """/mode <live|simulate>"""
-        if not await self._check_access(update, context):
-            return
-        from ..core.portfolio import switch_mode
-        arg = " ".join(context.args).strip().lower() if context.args else ""
-        if arg not in ("live", "simulate"):
-            await update.message.reply_text("Usage: /mode <live|simulate>")
-            return
-        result = switch_mode(arg)
-        if result.get("ok"):
-            emoji = "\U0001f534" if arg == "live" else "\U0001f7e2"
-            await update.message.reply_text(f"{emoji} Mode switched to {arg.upper()}")
-        else:
-            await update.message.reply_text(f"Error: {result.get('error')}")
-
-    async def _cmd_topup(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """/topup <amount>"""
-        if not await self._check_access(update, context):
-            return
-        from ..core.portfolio import top_up
-        try:
-            amount = float(context.args[0]) if context.args else 0
-        except (ValueError, IndexError):
-            await update.message.reply_text("Usage: /topup <amount>")
-            return
-        result = top_up(amount)
-        if result.get("ok"):
-            await update.message.reply_text(f"\U0001f4b0 Topped up ${amount:,.2f} to {result['portfolio']}/{result['mode']}. Balance: ${result['cash_balance']:,.2f}")
-        else:
-            await update.message.reply_text(f"Error: {result.get('error')}")
-
-    async def _cmd_cashout(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """/cashout <amount>"""
-        if not await self._check_access(update, context):
-            return
-        from ..core.portfolio import cash_out
-        try:
-            amount = float(context.args[0]) if context.args else 0
-        except (ValueError, IndexError):
-            await update.message.reply_text("Usage: /cashout <amount>")
-            return
-        result = cash_out(amount)
-        if result.get("ok"):
-            await update.message.reply_text(f"\U0001f4b8 Withdrew ${amount:,.2f} from {result['portfolio']}/{result['mode']}. Balance: ${result['cash_balance']:,.2f}")
-        else:
-            await update.message.reply_text(f"Error: {result.get('error')}")
 
     # ── Message handler (text + photos) ───────────────────────────────────────
 
@@ -558,10 +471,6 @@ class TelegramBot:
         app.add_handler(CommandHandler("status", self._cmd_status))
         app.add_handler(CommandHandler("compact", self._cmd_compact))
         app.add_handler(CommandHandler("clear_files", self._cmd_clear_files))
-        app.add_handler(CommandHandler("portfolio", self._cmd_portfolio))
-        app.add_handler(CommandHandler("mode", self._cmd_mode))
-        app.add_handler(CommandHandler("topup", self._cmd_topup))
-        app.add_handler(CommandHandler("cashout", self._cmd_cashout))
         app.add_handler(MessageHandler(
             (filters.TEXT | filters.PHOTO | filters.VOICE | filters.AUDIO)
             & ~filters.COMMAND,
@@ -618,18 +527,11 @@ _LEAKED_TOOL_RE = re.compile(
 )
 
 
-_PROGRESS_LINE_RE = re.compile(
-    r'\n\n(?:Searching|Fetching|Loading|Analyzing|Processing|Looking up'
-    r'|Checking|Retrieving|Calculating|Running)[^.\n]{0,50}[.…：:]\s*\n\n',
-)
+_PROGRESS_LINE_RE = re.compile(r'\n\n.{0,60}[：:]\s*\n\n')
 
 
 def _clean_response(text: str) -> str:
-    """Strip leaked tool-call XML/DSML markup, progress lines, and excess whitespace.
-
-    Only removes lines that look like progress narration (e.g. "Searching for...").
-    Preserves legitimate headers and content with colons.
-    """
+    """Strip leaked tool-call XML/DSML markup and excess whitespace."""
     text = _LEAKED_TOOL_RE.sub('', text)
     text = re.sub(r'\n{3,}', '\n\n', text)
     for _ in range(10):

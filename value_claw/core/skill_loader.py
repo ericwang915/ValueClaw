@@ -336,13 +336,13 @@ class SkillRegistry:
     # ── Catalog builder (for system prompt injection) ────────────────────
 
     def build_catalog(self) -> str:
-        """Build a compact skill catalog for the system prompt.
+        """Build a skill catalog for the system prompt (Level 1 metadata).
 
-        Format: one line per skill — ``name — description (≤50 chars)``.
-        Grouped by category.  Designed to be as token-efficient as possible
-        while still giving the LLM enough context to decide when to activate.
+        Format: one line per skill — ``name — description``.
+        Grouped by category. Descriptions include trigger conditions so the
+        LLM knows WHEN to activate each skill via ``use_skill(name)``.
 
-        Typical cost: ~8 tokens per skill (vs ~20 in the previous format).
+        Typical cost: ~20-30 tokens per skill × 64 skills ≈ 1.5K tokens.
         """
         skills = self.discover()
         if not skills:
@@ -361,13 +361,13 @@ class SkillRegistry:
                     cat_label = cat_meta.name
             lines.append(f"[{cat_label}]")
             for s in groups[cat]:
-                # Truncate description to first sentence or 50 chars
-                desc = s.description.strip()
-                dot = desc.find(".")
-                if 0 < dot <= 50:
-                    desc = desc[: dot + 1]
-                elif len(desc) > 50:
-                    desc = desc[:47] + "..."
+                desc = s.description.strip().strip('"')
+                if len(desc) > 200:
+                    cut = desc.rfind(".", 0, 200)
+                    if cut > 80:
+                        desc = desc[: cut + 1]
+                    else:
+                        desc = desc[:197] + "..."
                 lines.append(f"  {s.name} — {desc}")
 
         return "\n".join(lines)

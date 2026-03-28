@@ -30,6 +30,10 @@
       "baseUrl": "https://open.bigmodel.cn/api/paas/v4/"
     }
   },
+  "web_search": {
+    "provider": "tavily",
+    "api_key": ""
+  },
   "tavily": {
     "apiKey": ""
   },
@@ -74,23 +78,37 @@
     "github": {
       "token": ""
     },
+    "twitter": {
+      "bearerToken": "",
+      "apiKey": "",
+      "apiSecret": "",
+      "accessToken": "",
+      "accessTokenSecret": ""
+    },
+    "trendMonitoring": {
+      "discordWebhookUrl": "",
+      "defaultTickers": ["TSLA", "AAPL", "NVDA", "AMD", "MSFT", "GOOGL", "AMZN"]
+    },
+    "interactiveBrokers": {
+      "host": "127.0.0.1",
+      "port": 7497,
+      "clientId": 1,
+      "paperTrading": true
+    },
     "tushare": {
       "token": ""
     },
     "n8n": {
       "baseUrl": "http://localhost:5678",
       "apiKey": ""
-    },
-    "brave": {
-      "apiKey": ""
-    },
-    "perplexity": {
-      "apiKey": ""
     }
   },
   "prefect": {
     "host": "127.0.0.1",
     "port": 4200
+  },
+  "database": {
+    "url": "postgresql://localhost:5432/value_claw"
   },
   "agent": {
     "autoCompactThreshold": 0,

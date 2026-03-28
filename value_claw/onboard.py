@@ -47,7 +47,7 @@ PROVIDERS = [
     },
     {
         "key": "claude",
-        "name": "Claude (Anthropic) — API key or setup-token",
+        "name": "Claude (Anthropic) — API key or OAuth token",
         "default_model": "claude-sonnet-4-20250514",
         "default_base": None,
         "env": "ANTHROPIC_API_KEY",
@@ -172,7 +172,9 @@ def _get_api_key(provider: dict, cfg: dict) -> str:
 
     if provider["key"] == "claude":
         print(f"  {provider['name']} Authentication{hint}")
-        print(_c("    Supports: API key (sk-ant-...) or setup-token (from `claude setup-token`)", _DIM))
+        print(_c("    Supports:", _DIM))
+        print(_c("      • API key:     sk-ant-api03-...  (standard Anthropic API key)", _DIM))
+        print(_c("      • OAuth token: sk-ant-oat01-...  (from Claude Code / Max subscription)", _DIM))
     else:
         print(f"  {provider['name']} API Key{hint}")
 
@@ -185,8 +187,14 @@ def _get_api_key(provider: dict, cfg: dict) -> str:
         print(_c("  API key is required.", _RED))
         return _get_api_key(provider, cfg)
 
-    if provider["key"] == "claude" and not key.startswith("sk-ant-"):
-        print("  → Setup token set (session auth)")
+    if provider["key"] == "claude":
+        if "oat" in key[:20]:
+            print(f"  → OAuth token set ({key[:12]}****)")
+            print(_c("    Will use Claude Code-compatible auth headers", _DIM))
+        elif key.startswith("sk-ant-"):
+            print(f"  → API key set ({key[:10]}****)")
+        else:
+            print(f"  → Token set ({key[:4]}****)")
     else:
         print(f"  → Key set ({key[:4]}****)")
     print()
@@ -307,10 +315,12 @@ def _channel_keys(cfg: dict) -> None:
 
 def _validate_key(cfg: dict, provider: dict) -> None:
     """Make a quick test call to validate the API key."""
-    print(f"  Validating {provider['name']} API key...", end=" ", flush=True)
-
     prov_key = provider["key"]
     api_key = cfg["llm"][prov_key]["apiKey"]
+
+    is_oauth = prov_key == "claude" and "oat" in api_key[:20]
+    label = "OAuth token" if is_oauth else "API key"
+    print(f"  Validating {provider['name']} {label}...", end=" ", flush=True)
 
     try:
         if prov_key in ("deepseek", "grok", "kimi", "glm"):
@@ -323,7 +333,7 @@ def _validate_key(cfg: dict, provider: dict) -> None:
             from .core.llm.anthropic_client import AnthropicProvider
             model = cfg["llm"][prov_key].get("model", provider["default_model"])
             p = AnthropicProvider(api_key=api_key, model_name=model)
-            p.chat([{"role": "user", "content": "hi"}], max_tokens=5)
+            p.chat([{"role": "user", "content": "hi"}], max_tokens=16384 if is_oauth else 5)
         elif prov_key == "gemini":
             from .core.llm.gemini_client import GeminiProvider
             p = GeminiProvider(api_key=api_key)
@@ -332,12 +342,15 @@ def _validate_key(cfg: dict, provider: dict) -> None:
             print(_c("skipped (unknown provider type)", _YELLOW))
             return
 
-        print(_c("✔ Valid!", _GREEN))
+        auth_info = " (OAuth → Claude Code headers)" if is_oauth else ""
+        print(_c(f"✔ Valid!{auth_info}", _GREEN))
     except Exception as exc:
         err_str = str(exc)
         if len(err_str) > 100:
             err_str = err_str[:100] + "..."
         print(_c(f"✘ {err_str}", _RED))
+        if is_oauth:
+            print(_c("  OAuth tokens require an active Claude Max/Team subscription.", _DIM))
         print(_c("  You can fix this later in value_claw.json or the web dashboard.", _DIM))
 
 

@@ -30,6 +30,7 @@ import signal
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import yaml
@@ -48,8 +49,7 @@ _HAS_PREFECT = False
 _prefect_flow_fn = None
 
 try:
-    from prefect import flow as _pf
-    from prefect import tags as _pt
+    from prefect import flow as _pf, tags as _pt
 
     @_pf(name="cron-job", log_prints=True)
     def _tracked_execute(job_id: str, prompt: str) -> str:
@@ -318,18 +318,17 @@ class PrefectScheduler:
 
         static_count = self.load_and_register_jobs()
         dynamic_count = self._register_dynamic_jobs()
-        total = static_count + dynamic_count
+        strategy_count = self._restore_strategy_jobs()
+        total = static_count + dynamic_count + strategy_count
 
         if total == 0:
             logger.info("[PrefectScheduler] No jobs to schedule — scheduler idle.")
 
         self._scheduler.start()
         logger.info(
-            "[PrefectScheduler] Started: %d static + %d dynamic jobs. Prefect UI: %s",
-            static_count, dynamic_count, self.prefect_ui_url,
+            "[PrefectScheduler] Started: %d static + %d dynamic + %d strategy jobs. Prefect UI: %s",
+            static_count, dynamic_count, strategy_count, self.prefect_ui_url,
         )
-
-
 
     def stop(self) -> None:
         """Stop APScheduler and Prefect server."""
@@ -511,7 +510,111 @@ class PrefectScheduler:
             + f"\n\nPrefect UI: {self.prefect_ui_url}"
         )
 
+    # ── Strategy job management ─────────────────────────────────────────────
 
+    def _restore_strategy_jobs(self) -> int:
+        """Re-register cron jobs for all strategies with status='running'."""
+        try:
+            from ..core.strategy import list_strategies
+        except ImportError:
+            return 0
+        count = 0
+        for strat in list_strategies():
+            if strat.get("status") == "running":
+                sid = strat["id"]
+                try:
+                    self.register_strategy_job(sid, strat["schedule"])
+                    count += 1
+                except Exception as exc:
+                    logger.error("[PrefectScheduler] Failed to restore strategy job '%s': %s", sid, exc)
+        return count
+
+    def register_strategy_job(self, strategy_id: str, cron_expr: str) -> None:
+        """Register a strategy's cron job with APScheduler."""
+        trigger = _parse_cron(cron_expr)
+        job_id = f"strategy:{strategy_id}"
+        self._scheduler.add_job(
+            self._run_strategy_job,
+            trigger=trigger,
+            id=job_id,
+            kwargs={"strategy_id": strategy_id},
+            replace_existing=True,
+        )
+        self._jobs_meta[job_id] = {
+            "cron": cron_expr, "source": "strategy", "strategy_id": strategy_id,
+        }
+        logger.info("[PrefectScheduler] Strategy job registered: '%s' cron='%s'", strategy_id, cron_expr)
+
+    def remove_strategy_job(self, strategy_id: str) -> None:
+        """Remove a strategy's cron job from APScheduler."""
+        job_id = f"strategy:{strategy_id}"
+        try:
+            self._scheduler.remove_job(job_id)
+        except Exception:
+            pass
+        self._jobs_meta.pop(job_id, None)
+        logger.info("[PrefectScheduler] Strategy job removed: '%s'", strategy_id)
+
+    async def _run_strategy_job(self, strategy_id: str) -> None:
+        """Execute a strategy on its scheduled trigger."""
+        from ..core.strategy import (
+            execute_n8n_strategy,
+            execute_script_strategy,
+            get_strategy,
+            process_signals,
+            record_run,
+        )
+
+        strat = get_strategy(strategy_id)
+        if not strat:
+            logger.error("[PrefectScheduler] Strategy '%s' not found — skipping", strategy_id)
+            return
+        if strat.status != "running":
+            logger.info("[PrefectScheduler] Strategy '%s' is stopped — skipping", strategy_id)
+            return
+
+        logger.info("[PrefectScheduler] Running strategy '%s' (type=%s)", strategy_id, strat.type)
+        loop = asyncio.get_event_loop()
+        result_summary = ""
+
+        try:
+            if strat.type == "script":
+                signals = await loop.run_in_executor(None, execute_script_strategy, strat)
+                summary = process_signals(strat, signals)
+                result_summary = json.dumps(summary, ensure_ascii=False)
+
+            elif strat.type == "prompt":
+                session_id = f"strategy:{strategy_id}"
+                agent = self._sm.get_or_create(session_id)
+                prompt = strat.prompt_template or ""
+                if strat.params:
+                    prompt += f"\n\nStrategy parameters: {json.dumps(strat.params)}"
+                response = await loop.run_in_executor(None, agent.chat, prompt)
+                result_summary = response[:2000] if response else ""
+
+            elif strat.type == "n8n":
+                signals = await loop.run_in_executor(None, execute_n8n_strategy, strat)
+                if signals:
+                    summary = process_signals(strat, signals)
+                    result_summary = json.dumps(summary, ensure_ascii=False)
+                else:
+                    result_summary = "n8n workflow triggered (async)"
+
+            record_run(strategy_id, result_summary)
+            logger.info("[PrefectScheduler] Strategy '%s' completed.", strategy_id)
+
+        except Exception as exc:
+            logger.exception("[PrefectScheduler] Strategy '%s' failed: %s", strategy_id, exc)
+            record_run(strategy_id, f"ERROR: {exc}")
+
+    async def trigger_strategy(self, strategy_id: str) -> str:
+        """Manually trigger a strategy to run once."""
+        from ..core.strategy import get_strategy
+        strat = get_strategy(strategy_id)
+        if not strat:
+            return json.dumps({"ok": False, "error": f"Strategy '{strategy_id}' not found."})
+        asyncio.create_task(self._run_strategy_job(strategy_id=strategy_id))
+        return json.dumps({"ok": True, "message": f"Strategy '{strategy_id}' triggered."})
 
     # ── Extended API (for REST endpoints and agent tools) ────────────────────
 

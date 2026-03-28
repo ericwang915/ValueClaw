@@ -16,6 +16,7 @@ Agent._build_tools() assembles the right subset per session.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
@@ -786,6 +787,228 @@ META_SKILL_TOOLS: list[dict] = [
             },
         },
         ["name", "description", "instructions"],
+    ),
+]
+
+
+# ── Strategy tool implementations ────────────────────────────────────────────
+
+def strategy_list() -> str:
+    """List all registered strategies."""
+    from .strategy import list_strategies
+    strategies = list_strategies()
+    if not strategies:
+        return "No strategies registered."
+    return json.dumps(strategies, indent=2, ensure_ascii=False)
+
+
+def strategy_create(
+    strategy_id: str,
+    name: str,
+    strategy_type: str,
+    schedule: str,
+    execution_mode: str = "approval",
+    script_path: str | None = None,
+    prompt_template: str | None = None,
+    n8n_workflow_id: str | None = None,
+    params: dict | None = None,
+) -> str:
+    """Register a new strategy."""
+    from .strategy import register_strategy
+    result = register_strategy(
+        strategy_id=strategy_id, name=name, strategy_type=strategy_type,
+        schedule=schedule, execution_mode=execution_mode,
+        script_path=script_path, prompt_template=prompt_template,
+        n8n_workflow_id=n8n_workflow_id, params=params,
+    )
+    return json.dumps(result, ensure_ascii=False)
+
+
+def strategy_update(
+    strategy_id: str,
+    name: str | None = None,
+    schedule: str | None = None,
+    execution_mode: str | None = None,
+    prompt_template: str | None = None,
+    script_path: str | None = None,
+    n8n_workflow_id: str | None = None,
+    params: dict | None = None,
+) -> str:
+    """Update an existing strategy."""
+    from .strategy import update_strategy
+    result = update_strategy(
+        strategy_id=strategy_id, name=name, schedule=schedule,
+        execution_mode=execution_mode, prompt_template=prompt_template,
+        script_path=script_path, n8n_workflow_id=n8n_workflow_id, params=params,
+    )
+    return json.dumps(result, ensure_ascii=False)
+
+
+def strategy_delete(strategy_id: str) -> str:
+    """Delete a strategy."""
+    from .strategy import unregister_strategy
+    result = unregister_strategy(strategy_id)
+    return json.dumps(result, ensure_ascii=False)
+
+
+def strategy_status(strategy_id: str) -> str:
+    """Get detailed status of a strategy."""
+    from .strategy import get_strategy, get_strategy_trades, list_pending_trades
+    strat = get_strategy(strategy_id)
+    if not strat:
+        return json.dumps({"ok": False, "error": f"Strategy '{strategy_id}' not found."})
+    from dataclasses import asdict
+    info = asdict(strat)
+    info["recent_trades"] = get_strategy_trades(strategy_id, limit=5)
+    info["pending_trades"] = list_pending_trades(strategy_id)
+    return json.dumps(info, indent=2, ensure_ascii=False)
+
+
+def strategy_pending(strategy_id: str | None = None) -> str:
+    """List pending trades awaiting approval."""
+    from .strategy import list_pending_trades
+    trades = list_pending_trades(strategy_id)
+    if not trades:
+        return "No pending trades."
+    return json.dumps(trades, indent=2, ensure_ascii=False)
+
+
+def strategy_approve(trade_id: str) -> str:
+    """Approve a pending trade."""
+    from .strategy import approve_trade
+    result = approve_trade(trade_id)
+    return json.dumps(result, ensure_ascii=False)
+
+
+def strategy_reject(trade_id: str) -> str:
+    """Reject a pending trade."""
+    from .strategy import reject_trade
+    result = reject_trade(trade_id)
+    return json.dumps(result, ensure_ascii=False)
+
+
+AVAILABLE_TOOLS["strategy_list"] = strategy_list
+AVAILABLE_TOOLS["strategy_create"] = strategy_create
+AVAILABLE_TOOLS["strategy_update"] = strategy_update
+AVAILABLE_TOOLS["strategy_delete"] = strategy_delete
+AVAILABLE_TOOLS["strategy_status"] = strategy_status
+AVAILABLE_TOOLS["strategy_pending"] = strategy_pending
+AVAILABLE_TOOLS["strategy_approve"] = strategy_approve
+AVAILABLE_TOOLS["strategy_reject"] = strategy_reject
+
+
+STRATEGY_TOOLS: list[dict] = [
+    _fn(
+        "strategy_list",
+        "List all registered strategies with their status (running/stopped), type, and schedule.",
+        {},
+        [],
+    ),
+    _fn(
+        "strategy_create",
+        (
+            "Register a new trading strategy. The strategy starts in 'stopped' state. "
+            "Use strategy_start to begin execution. Three types are supported: "
+            "'script' (Python script), 'prompt' (LLM prompt template), 'n8n' (workflow)."
+        ),
+        {
+            "strategy_id": {"type": "string", "description": "Unique identifier (no spaces), e.g. 'momentum-us'."},
+            "name": {"type": "string", "description": "Human-readable display name."},
+            "strategy_type": {
+                "type": "string", "enum": ["script", "prompt", "n8n"],
+                "description": "Type of strategy: 'script' (Python), 'prompt' (LLM), or 'n8n' (workflow).",
+            },
+            "schedule": {"type": "string", "description": "Cron expression for execution schedule, e.g. '0 9 * * 1-5'."},
+            "execution_mode": {
+                "type": "string", "enum": ["auto", "approval"],
+                "description": "auto = execute trades immediately; approval = queue for user review. Default: approval.",
+            },
+            "script_path": {"type": "string", "description": "Path to Python script (required for type=script)."},
+            "prompt_template": {"type": "string", "description": "Prompt template text (required for type=prompt)."},
+            "n8n_workflow_id": {"type": "string", "description": "n8n workflow ID (required for type=n8n)."},
+            "params": {"type": "object", "description": "Strategy-specific parameters (passed to script/prompt)."},
+        },
+        ["strategy_id", "name", "strategy_type", "schedule"],
+    ),
+    _fn(
+        "strategy_start",
+        "Start a stopped strategy. This registers its cron schedule and begins autonomous execution.",
+        {"strategy_id": {"type": "string", "description": "Strategy ID to start."}},
+        ["strategy_id"],
+    ),
+    _fn(
+        "strategy_stop",
+        "Stop a running strategy. This removes its cron schedule. Pending trades are preserved.",
+        {"strategy_id": {"type": "string", "description": "Strategy ID to stop."}},
+        ["strategy_id"],
+    ),
+    _fn(
+        "strategy_switch",
+        "Atomically stop one strategy and start another.",
+        {
+            "from_id": {"type": "string", "description": "Strategy to stop."},
+            "to_id": {"type": "string", "description": "Strategy to start."},
+        },
+        ["from_id", "to_id"],
+    ),
+    _fn(
+        "strategy_status",
+        "Get detailed status of a strategy including recent trades, pending trades, and last run info.",
+        {"strategy_id": {"type": "string", "description": "Strategy ID to inspect."}},
+        ["strategy_id"],
+    ),
+    _fn(
+        "strategy_update",
+        "Update an existing strategy's schedule, execution mode, prompt, or parameters.",
+        {
+            "strategy_id": {"type": "string", "description": "Strategy to update."},
+            "name": {"type": "string", "description": "New display name (optional)."},
+            "schedule": {"type": "string", "description": "New cron expression (optional)."},
+            "execution_mode": {
+                "type": "string", "enum": ["auto", "approval"],
+                "description": "New execution mode (optional).",
+            },
+            "prompt_template": {"type": "string", "description": "New prompt template (optional)."},
+            "script_path": {"type": "string", "description": "New script path (optional)."},
+            "n8n_workflow_id": {"type": "string", "description": "New n8n workflow ID (optional)."},
+            "params": {"type": "object", "description": "New strategy parameters (optional)."},
+        },
+        ["strategy_id"],
+    ),
+    _fn(
+        "strategy_delete",
+        "Remove a strategy from the registry. The strategy must be stopped first.",
+        {"strategy_id": {"type": "string", "description": "Strategy ID to delete."}},
+        ["strategy_id"],
+    ),
+    _fn(
+        "strategy_trigger",
+        "Manually trigger a strategy to run once immediately (for testing or one-off execution).",
+        {"strategy_id": {"type": "string", "description": "Strategy ID to trigger."}},
+        ["strategy_id"],
+    ),
+    _fn(
+        "strategy_pending",
+        "List all pending trades awaiting approval. Optionally filter by strategy.",
+        {
+            "strategy_id": {
+                "type": "string",
+                "description": "Filter by strategy ID (optional, omit for all pending).",
+            },
+        },
+        [],
+    ),
+    _fn(
+        "strategy_approve",
+        "Approve a pending trade — this executes the trade immediately.",
+        {"trade_id": {"type": "string", "description": "Pending trade ID to approve."}},
+        ["trade_id"],
+    ),
+    _fn(
+        "strategy_reject",
+        "Reject a pending trade — the trade is discarded without execution.",
+        {"trade_id": {"type": "string", "description": "Pending trade ID to reject."}},
+        ["trade_id"],
     ),
 ]
 

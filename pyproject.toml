@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "valueclaw"
-version = "0.7.0"
+name = "value_claw"
+version = "0.6.6"
 description = "OpenClaw reimagined in pure Python — autonomous AI agent with memory, RAG, skills, web dashboard, and multi-channel support."
 readme = "README.md"
 license = {text = "MIT"}
@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 authors = [
     {name = "Eric Wang", email = "wangchen2007915@gmail.com"},
 ]
-keywords = ["llm", "agent", "ai", "autonomous", "memory", "rag", "skills", "telegram", "discord", "chatbot", "framework", "portfolio", "investing"]
+keywords = ["llm", "agent", "ai", "autonomous", "memory", "rag", "skills", "telegram", "discord", "chatbot", "framework", "investing"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -27,52 +27,42 @@ classifiers = [
 ]
 dependencies = [
     "openai",
-    "httpx>=0.24",
+    "anthropic",
+    "google-generativeai",
+    "python-telegram-bot[job-queue]>=20.0",
+    "discord.py>=2.3",
+    "apscheduler>=3.10",
     "pyyaml>=6.0",
+    "prefect>=3.0",
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.20",
+    "httpx>=0.24",
+    "tavily-python",
     "rank-bm25>=0.2",
     "numpy>=1.24",
+    "scikit-learn>=1.3",
     "beautifulsoup4",
     "requests",
     "yfinance>=0.2.31",
-]
-
-[project.optional-dependencies]
-# LLM providers (install what you need)
-anthropic = ["anthropic"]
-gemini = ["google-generativeai"]
-
-# Channels
-telegram = ["python-telegram-bot[job-queue]>=20.0"]
-discord = ["discord.py>=2.3"]
-
-# Web dashboard
-web = ["fastapi>=0.100", "uvicorn[standard]>=0.20"]
-
-# Scheduler
-scheduler = ["prefect>=3.0", "apscheduler>=3.10"]
-
-# Search
-search = ["tavily-python"]
-
-# Dense retrieval (embedding-based)
-dense = ["scikit-learn>=1.3"]
-
-# Accurate token counting
-tokens = ["tiktoken"]
-
-# All optional dependencies
-all = [
-    "valueclaw[anthropic,gemini,telegram,discord,web,scheduler,search,dense,tokens]",
+    "sqlalchemy>=2.0",
+    "psycopg2-binary>=2.9",
+    "matplotlib>=3.7",
+    "mplfinance>=0.12",
+    "scipy>=1.10",
+    "Pillow>=9.5",
+    "pandas>=2.0",
+    "tradingview-ta>=3.3",
+    "tweepy>=4.14",
 ]
 
 [project.scripts]
 value_claw = "value_claw.main:main"
 
 [project.urls]
-Homepage = "https://github.com/ericwang915/ValueClaw"
-Documentation = "https://github.com/ericwang915/ValueClaw#readme"
-Repository = "https://github.com/ericwang915/ValueClaw"
-Issues = "https://github.com/ericwang915/ValueClaw/issues"
+Homepage = "https://github.com/ericwang915/value_claw"
+Documentation = "https://github.com/ericwang915/value_claw#readme"
+Repository = "https://github.com/ericwang915/value_claw"
+Issues = "https://github.com/ericwang915/value_claw/issues"
 
 [tool.setuptools.packages.find]
 include = ["value_claw*"]
