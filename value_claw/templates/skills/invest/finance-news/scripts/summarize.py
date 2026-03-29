@@ -21,9 +21,13 @@ from utils import clamp_timeout, compute_deadline, ensure_venv, time_left
 
 ensure_venv()
 
-from fetch_news import PortfolioError, get_market_news, get_portfolio_movers, get_portfolio_news  # noqa: E402
+from fetch_news import (  # noqa: E402, I001
+    PortfolioError,
+    get_market_news,
+    get_portfolio_movers,
+    get_portfolio_news,
+)
 from ranking import rank_headlines  # noqa: E402
-
 from research import generate_research_content  # noqa: E402
 
 SCRIPT_DIR = Path(__file__).parent
