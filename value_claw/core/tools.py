@@ -321,6 +321,16 @@ SKILL_TOOLS: list[dict] = [
         ["skill_name"],
     ),
     _fn(
+        "search_skills",
+        (
+            "Search for skills by keyword. Returns matching skill names, "
+            "descriptions, and categories. Use when you need a capability "
+            "not listed in the frequently-used skills."
+        ),
+        {"query": {"type": "string", "description": "Keyword to search for (e.g. 'pdf', 'stock', 'translate')."}},
+        ["query"],
+    ),
+    _fn(
         "list_skill_resources",
         (
             "List resource files bundled with a skill (scripts, schemas, reference docs). "

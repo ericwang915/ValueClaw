@@ -6,12 +6,15 @@ response format used by Agent.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Generator
 from typing import Any, Dict, List, Optional
 
 import anthropic
 
 from .base import LLMProvider
+
+logger = logging.getLogger(__name__)
 from .response import MockChoice, MockFunction, MockMessage, MockResponse, MockToolCall
 
 
@@ -115,6 +118,9 @@ class AnthropicProvider(LLMProvider):
 
         filtered_messages = self._merge_consecutive(filtered_messages)
 
+        if self._is_oauth:
+            filtered_messages = self._ensure_content_blocks(filtered_messages)
+
         anthropic_tools = []
         if tools:
             for t in tools:
@@ -153,6 +159,14 @@ class AnthropicProvider(LLMProvider):
                 pass
             else:
                 api_kwargs["tool_choice"] = {"type": "auto"}
+
+        if self._is_oauth:
+            for idx, m in enumerate(filtered_messages):
+                ct = type(m.get("content")).__name__
+                logger.debug(
+                    "[Anthropic] msg[%d] role=%s content_type=%s keys=%s",
+                    idx, m.get("role"), ct, list(m.keys()),
+                )
 
         return api_kwargs
 
@@ -305,6 +319,30 @@ class AnthropicProvider(LLMProvider):
         return out
 
     # ── utilities ─────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _ensure_content_blocks(messages: list[dict]) -> list[dict]:
+        """Convert all message content to list-of-blocks format and strip
+        non-standard fields.
+
+        Required by the interleaved-thinking beta — the Anthropic API
+        rejects plain-string ``content`` on any message when this beta
+        is active.  Also strips extra keys (``_ts``, etc.) that
+        Pydantic validation would reject.
+        """
+        _ALLOWED_KEYS = {"role", "content"}
+        out = []
+        for msg in messages:
+            content = msg.get("content")
+            if isinstance(content, str):
+                content = [{"type": "text", "text": content}]
+            elif content is None:
+                content = [{"type": "text", "text": ""}]
+            elif not isinstance(content, list):
+                content = [{"type": "text", "text": str(content)}]
+            clean = {"role": msg["role"], "content": content}
+            out.append(clean)
+        return out
 
     @staticmethod
     def _merge_consecutive(messages: list[dict]) -> list[dict]:

@@ -47,7 +47,8 @@
   "channels": {
     "telegram": {
       "token": "",
-      "allowedUsers": []
+      "allowedUsers": [],
+      "allowedGroups": []
     },
     "discord": {
       "token": "",

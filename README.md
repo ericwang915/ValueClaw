@@ -5,8 +5,8 @@
 <h1 align="center">ValueClaw</h1>
 
 <p align="center">
-  <strong>Your Autonomous AI Investment Analyst — Built entirely in Python.</strong><br>
-  Market Research · Fundamentals Analysis · Sentiment Tracking · Web Chat Interface · Multi-Channel
+  <strong>Autonomous AI Strategy Orchestrator — Built entirely in Python.</strong><br>
+  Strategy Management · Market Research · Trend Monitoring · Multi-Channel · 64+ Skills
 </p>
 
 <p align="center">
@@ -26,73 +26,66 @@
 </p>
 
 <p align="center">
-  <em>An intelligent, provider-agnostic native AI agent dedicated to deep financial research, SEC filing analysis, and autonomous market monitoring. Surpass human limitations with code-driven investment intelligence.</em>
+  <em>A world-class AI strategy orchestrator for deep financial research, autonomous market monitoring, and multi-channel communication. Modeled after the investment discipline of Buffett, Dalio, Soros, and Lynch.</em>
 </p>
 
-> **⚠️ ValueClaw is a research tool only — it does NOT execute real trades or connect to brokerages. All portfolio features are simulation/paper trading. See [full disclaimer](#️-disclaimer).**
+> **⚠️ ValueClaw is a research & strategy management tool — it does NOT execute real trades or connect to brokerages. See [full disclaimer](#️-disclaimer).**
 
 ---
 
 ## 🌟 Why ValueClaw?
 
-While other frameworks offer generic conversational AI, **ValueClaw** is engineered from the ground up to be a **Tier-1 Financial Analyst**. It bridges the gap between massive LLM reasoning capabilities (like DeepSeek, GPT-4, and Claude) and hard quantitative market data. 
+While other frameworks offer generic conversational AI, **ValueClaw** is engineered from the ground up as a **Strategy Orchestrator** — managing autonomous trading strategies, monitoring market conditions, and coordinating 64+ specialized skills through a token-efficient progressive discovery system.
 
-- **Data-Driven Objectivity:** Never hallucinates stock prices. ValueClaw pulls real-time data before answering.
-- **Provider-Agnostic Engine:** Swap between DeepSeek, Grok, Claude, Gemini, Kimi, and GLM on the fly.
-- **Persistent Memory:** Remembers your portfolio preferences, risk tolerance, and historical market contexts.
-- **Hybrid RAG Architecture:** Fuses BM25 sparse retrieval with dense embeddings for pinpoint accuracy on massive SEC documents.
-- **Always Online:** Runs as a standalone background daemon interacting with you seamlessly via Telegram, Discord, WhatsApp, or its own Web Chat Interface.
-
----
-
-## 📈 Investment Capabilities (Deep Dive)
-
-ValueClaw's true power lies in its extensible **Financial Skills Engine**. Out of the box, it is equipped to handle complex quantitative and qualitative research tasks.
-
-### 1. Market Data Mastery
-- **`yahoo-finance`**: Instantly pull global stock prices, historical ticks, and major indices.
-- **`tushare-finance`**: Deep integration with Chinese A-Shares. Fetch daily quotes, margin trading data, and macroeconomic indicators (PMI, CPI).
-- **`akshare_data`**: Access an arsenal of alternative data for futures, options, and foreign exchange markets.
-
-### 2. Corporate Fundamentals
-- **`sec_filings`**: Automatically fetch 10-K and 10-Q reports directly from the SEC EDGAR database. The agent reads the raw filings, bypasses PR spin, and extracts critical risk factors and management discussions.
-- **`stock_fundamentals`**: Calculates and tracks PE, PB, ROE, EPS, Free Cash Flow, and operating margins to evaluate intrinsic value.
-
-### 3. Quantitative & Technical Analysis
-- **`technical_analysis`**: Calculates dynamic indicators including RSI, MACD, Moving Averages (EMA/SMA), and Bollinger Bands to optimize entry/exit points.
-- **`market-environment-analysis`**: Assesses macroeconomic trends and broader market sentiment to determine systematic risk levels.
-
-### 4. News & Social Sentiment Engine
-- **`finance-news`**: Monitors breaking financial news across global endpoints.
-- **`twitter-news`**: Analyzes social media sentiment in real-time to front-run retail trends and viral market movements.
-
-### 5. Strategy & Trading Assistants
-- **`trading-coach`**: Acts as your personal quant strategist. Submit a portfolio hypothesis, and the agent will backtest the logic, pointing out historical flaws and risk exposures.
-- **`etf-assistant`**: Recommends ETF allocations based on desired thematic exposure (e.g., "Give me a low-volatility semiconductor basket").
-
-### 6. Market Intelligence & Sentiment
-- **`market-sentiment`**: Real-time sentiment dashboard — CNN Fear & Greed Index, VIX analysis, put/call ratio, market breadth, composite score.
-- **`economic-calendar`**: Upcoming macro events (FOMC, CPI, NFP, PMI, GDP) with impact levels, forecasts, and country filters.
-- **`insider-tracker`**: SEC Form 4 insider trading tracker with cluster buying detection and large trade filtering.
-- **`institutional-holdings`**: 13F institutional holders, ownership concentration (HHI index), fund-level tracking.
-
-### 7. Options & Risk Analytics
-- **`options-flow`**: Options chain analysis, unusual activity detection (volume > 5x OI), max pain calculation, IV rank, put/call ratios.
-- **`risk-analytics`**: Portfolio risk toolkit — correlation matrix, VaR (95%/99%), Sharpe/Sortino/Calmar ratios, max drawdown, stress testing.
-- **`earnings-tracker`**: Earnings calendar, EPS surprise history, beat/miss rates, post-earnings drift analysis.
-
-### 8. Crypto & DeFi
-- **`crypto-onchain`**: CoinGecko prices, crypto Fear & Greed Index, trending coins, historical charts, DeFi TVL overview via DeFi Llama.
+- **Strategy Orchestrator:** Start, stop, switch, and monitor autonomous trading strategies — not individual trades.
+- **Provider-Agnostic Engine:** Swap between DeepSeek, Grok, Claude (API + OAuth), Gemini, Kimi, and GLM on the fly.
+- **Persistent Memory:** Remembers risk tolerance, strategy decisions, and market context across sessions.
+- **Hybrid RAG Architecture:** Fuses BM25 sparse retrieval with dense embeddings for pinpoint accuracy on SEC documents.
+- **Token-Efficient Skill Discovery:** Progressive 3-tier skill loading with hot-skill tracking — reduces catalog overhead by ~82%.
+- **Multi-Channel:** Telegram (DM + group @mention), Discord, Web Chat — always online as a background daemon.
 
 ---
 
-## 🌐 Web & Deep Research Capabilities
+## 📈 Capabilities
 
-When financial data platforms fall short, ValueClaw takes to the open web.
+ValueClaw ships with **64+ specialized skills** across 10 categories, loaded on-demand through a progressive discovery system.
 
-- **`perplexity_search`**: Connected to the `sonar-pro` model, the agent can synthesize massive geopolitical reports, supply chain disruptions, and macro research dynamically.
-- **`brave_search`**: Programmatic, unbiased web searches for the latest unindexed events and press releases.
-- **`summarize`**: Feed the agent an earnings call transcript link, and receive a structured, 5-point executive summary in seconds.
+### Strategy Orchestration (Core)
+The agent manages **autonomous trading strategies** rather than individual trades:
+- `strategy_create` / `strategy_start` / `strategy_stop` / `strategy_switch`
+- Three strategy types: **prompt** (LLM template), **script** (Python), **n8n** (workflow)
+- Approval mode for manual review before execution
+- Scheduled via Prefect cron with full lifecycle management
+
+### Market Data & Analysis
+| Category | Key Skills |
+|----------|-----------|
+| **Data** | `yahoo-finance`, `tushare-finance`, `akshare_data`, `finance`, `news` |
+| **Fundamentals** | `sec_filings`, `stock_fundamentals`, `earnings-tracker` |
+| **Technical** | `technical_analysis`, `technical-analyst`, `trend-monitoring` |
+| **Sentiment** | `market-sentiment`, `finance-news`, `twitter-news` |
+| **Macro** | `market-environment-analysis`, `economic-calendar` |
+| **Options & Risk** | `options-flow`, `risk-analytics`, `insider-tracker`, `institutional-holdings` |
+| **Crypto** | `crypto-onchain` |
+| **Strategy** | `trading-coach`, `etf-assistant`, `a-stock-analysis` |
+
+### Trend Monitoring
+The `trend-monitoring` skill generates professional candlestick charts with Bollinger Bands, SMA, RSI, and MACD — then uses the configured LLM for deep technical analysis, outputting actionable signals with confidence levels.
+
+### Communication
+- **`twitter-post`** — Post tweets with image attachments via Twitter API v2
+- **Telegram** — DM + group @mention support with whitelist access control
+- **Discord** — Webhook-based notifications
+
+---
+
+## 🌐 Web & Research
+
+- **`perplexity_search`** — Sonar-pro model for deep geopolitical and macro research
+- **`brave_search`** — Unbiased web search for breaking events and press releases
+- **`tavily_search`** — Financial-optimized web search with topic filters
+- **`summarize`** — Feed a URL and get a structured executive summary
+- **`web-scraper`** — Extract structured data from any webpage
 
 ---
 
@@ -159,74 +152,40 @@ value_claw chat
 ## 🧠 Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                          ValueClaw                              │
-├───────────┬────────────┬─────────────┬──────────────────────────┤
-│ Interface │ Lifecycle  │ Memory &    │      Core Engine         │
-│           │            │ State       │                          │
-│ CLI       │ Start      │ Markdown    │ ├─ Hybrid RAG Retrieval  │
-│ Web Chat  ◄─┤ Stop       │ Local DB    │ ├─ Financial Skills      │
-│ Telegram  │ Status     │ Locks       │ ├─ Context Compaction    │
-│ Discord   │ Cron Jobs  │ Per-group   │ ├─ Persona Manager       │
-├───────────┴────────────┴─────────────┴──────────────────────────┤
-│                 LLM Provider Abstraction Layer                  │
-│ DeepSeek │ Grok │ Claude │ Gemini │ Kimi │ GLM | OpenAI API     │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                           ValueClaw                                  │
+├──────────────┬──────────────┬────────────┬───────────────────────────┤
+│  Channels    │  Strategies  │  Memory    │     Core Engine           │
+│              │              │            │                           │
+│  CLI         │  Prompt      │  Markdown  │  ├─ Hybrid RAG Retrieval  │
+│  Web Chat    │  Script      │  Per-group │  ├─ 64+ Financial Skills  │
+│  Telegram*   │  n8n         │  Global    │  ├─ Smart Skill Discovery │
+│  Discord     │  Cron/Prefect│  Indexed   │  ├─ Context Compaction    │
+├──────────────┴──────────────┴────────────┴───────────────────────────┤
+│                   LLM Provider Abstraction Layer                     │
+│  DeepSeek │ Claude (API+OAuth) │ Gemini │ Grok │ Kimi │ GLM │ OpenAI│
+└──────────────────────────────────────────────────────────────────────┘
+ * Telegram: DM + Group @mention with whitelist access control
 ```
 
 ---
 
-## 💼 Portfolio Management
+## 🧩 Skill Discovery (Token-Efficient)
 
-ValueClaw includes a built-in **paper trading & portfolio tracker** that lets you simulate investments or track real positions — all managed through the agent or the web dashboard.
+ValueClaw uses a **3-tier progressive disclosure** system to minimize LLM token usage:
 
-### Features
-- **Dual-mode tracking**: Switch between `simulate` (paper trading) and `live` (real position tracking)
-- **Multiple portfolios**: Manage separate portfolios for different asset classes (e.g., `us-stocks`, `crypto`)
-- **Cash management**: Top up or withdraw cash with `/topup` and `/cashout`
-- **Trade logging**: Every buy/sell is recorded with timestamps, prices, and quantities
-- **Performance snapshots**: Take periodic snapshots to track portfolio value over time
-- **Strategy engine**: Create automated investment strategies with approval workflows
+| Tier | What | When |
+|------|------|------|
+| **Level 1 — Catalog** | Skill names + short descriptions in system prompt | Every request |
+| **Level 2 — Instructions** | Full SKILL.md loaded via `use_skill(name)` | On-demand |
+| **Level 3 — Resources** | Scripts, schemas, reference docs | When skill directs |
 
-### Telegram Commands
-```
-/portfolio              — View portfolio status (all portfolios & modes)
-/portfolio us-stocks    — Switch active portfolio
-/mode live              — Switch to live tracking mode
-/mode simulate          — Switch to paper trading mode
-/topup 10000            — Add $10,000 cash to active portfolio
-/cashout 5000           — Withdraw $5,000 from active portfolio
-```
-
-### Web Dashboard API
-The web dashboard at `http://localhost:7788/dashboard` provides a full portfolio management interface:
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/portfolios/status` | GET | Overview of all portfolios |
-| `/api/portfolios/buy` | POST | Execute a buy order |
-| `/api/portfolios/sell` | POST | Execute a sell order |
-| `/api/portfolios/{id}/trades` | GET | Trade history |
-| `/api/portfolios/{id}/performance` | GET | Performance analytics |
-| `/api/portfolios/{id}/snapshots` | GET | Historical value snapshots |
-| `/api/strategies` | GET/POST | List or create trading strategies |
-| `/api/strategies/{id}/start` | POST | Activate a strategy |
-
-### Natural Language Trading
-You can also manage your portfolio through natural conversation:
-```
-You: Buy 100 shares of AAPL at market price
-Bot: 📊 Order executed: BUY 100 AAPL @ $251.49
-     Portfolio: us-stocks (simulate)
-     Cash remaining: $74,851.00
-
-You: What's my portfolio performance this month?
-Bot: 📈 Portfolio Performance (March 2026)
-     Total Value: $127,450.00 (+3.2%)
-     ...
-```
-
-> **Note:** ValueClaw does NOT connect to real brokerages. "Live mode" tracks positions you manually record. For actual trade execution, see the roadmap for upcoming Alpaca/IBKR integration.
+**Smart catalog optimization** (new in v0.7.2):
+- Tracks which skills you use most frequently
+- Hot skills (top 12) get expanded descriptions in the catalog
+- Cold skills are collapsed to name-only category lists
+- `search_skills(query)` tool lets the LLM find any skill by keyword
+- Result: **~82% token reduction** on the skill catalog (from ~1,900 to ~330 tokens)
 
 ---
 
@@ -238,12 +197,15 @@ All system properties, API keys, and model preferences are handled natively in `
 
 ## 🗺️ Roadmap
 
-- [x] Integrate global LLM models (DeepSeek, Grok, Gemini, Claude).
-- [x] Multi-Channel Support (Telegram, Discord, Web UI).
-- [x] Fully open-source Skills Marketplace integration.
-- [ ] **Multi-Agent Debate**: Spawn two agents (a Bull and a Bear) to argue a stock thesis before finalizing a report.
-- [ ] **Live Trade Integration**: Direct API hookups for Alpaca and Interactive Brokers paper trading.
-- [ ] **PDF/Image Parse**: Native visual parsing for bespoke hedge fund reports and charting images.
+- [x] Integrate global LLM models (DeepSeek, Grok, Gemini, Claude API + OAuth).
+- [x] Multi-Channel Support (Telegram DM + Group, Discord, Web UI).
+- [x] 64+ financial skills with progressive discovery.
+- [x] Strategy orchestration engine (prompt / script / n8n).
+- [x] Trend monitoring with chart generation and LLM analysis.
+- [x] Token-efficient smart catalog (~82% reduction).
+- [ ] **Multi-Agent Debate**: Bull vs Bear agents argue a thesis before final report.
+- [ ] **Live Trade Integration**: Alpaca / Interactive Brokers paper trading APIs.
+- [ ] **Visual Parsing**: Native image/PDF parsing for hedge fund reports and charts.
 
 ---
 
@@ -261,14 +223,12 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## ⚠️ Disclaimer
 
-**ValueClaw is a research and analysis tool only. It does NOT support live trading or execute real trades.**
+**ValueClaw is a research and strategy management tool only. It does NOT execute real trades or connect to brokerages.**
 
-- All portfolio features operate in **simulation/paper trading mode**. There is no connection to any brokerage or exchange.
-- Investment analysis, recommendations, and reports generated by ValueClaw are for **informational and educational purposes only** and do not constitute financial advice.
+- Investment analysis, recommendations, and reports are for **informational and educational purposes only** and do not constitute financial advice.
 - Always do your own research (DYOR) before making investment decisions. Past performance does not guarantee future results.
 - The developers of ValueClaw are not responsible for any financial losses incurred from decisions made based on this tool's output.
 - Market data may be delayed or inaccurate. Verify all data with official sources before acting on it.
-- Live brokerage integration (Alpaca, Interactive Brokers) is on the roadmap but **not yet implemented**.
 
 **By using ValueClaw, you acknowledge that you understand these limitations and assume all risks associated with your investment decisions.**
 

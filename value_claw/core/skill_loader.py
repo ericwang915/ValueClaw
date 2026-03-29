@@ -335,42 +335,91 @@ class SkillRegistry:
 
     # ── Catalog builder (for system prompt injection) ────────────────────
 
+    @staticmethod
+    def _compress_description(desc: str, limit: int = 80) -> str:
+        """Compress a skill description to *limit* chars, keeping keywords."""
+        desc = desc.strip().strip('"')
+        if len(desc) <= limit:
+            return desc
+        cut = desc.find(". ", 0, limit)
+        if cut > 30:
+            return desc[: cut + 1]
+        cut = desc.rfind(",", 0, limit)
+        if cut > 30:
+            return desc[:cut]
+        return desc[: limit - 3] + "..."
+
     def build_catalog(self) -> str:
-        """Build a skill catalog for the system prompt (Level 1 metadata).
+        """Build a full skill catalog (legacy — kept for backward compat)."""
+        return self.build_compact_catalog(hot_skills=None, compact=False)
 
-        Format: one line per skill — ``name — description``.
-        Grouped by category. Descriptions include trigger conditions so the
-        LLM knows WHEN to activate each skill via ``use_skill(name)``.
+    def build_compact_catalog(
+        self,
+        hot_skills: set[str] | None = None,
+        compact: bool = True,
+    ) -> str:
+        """Build a token-efficient skill catalog for the system prompt.
 
-        Typical cost: ~20-30 tokens per skill × 64 skills ≈ 1.5K tokens.
+        When *compact* is True (default):
+          - **Hot skills** (frequently used): name + compressed description
+          - **Cold skills**: grouped by category as name-only lists
+          - Typical cost: ~800-1200 tokens (vs ~3000 for full catalog)
+
+        When *compact* is False:
+          - All skills get descriptions (original behavior)
+
+        The LLM can always ``search_skills(query)`` or ``use_skill(name)``
+        to discover any skill not listed in detail.
         """
         skills = self.discover()
         if not skills:
             return "(no skills installed)"
 
+        hot = hot_skills or set()
+
         groups: dict[str, list[SkillMetadata]] = {}
         for s in skills:
             groups.setdefault(s.category or "general", []).append(s)
 
-        lines: list[str] = []
+        if not compact:
+            lines: list[str] = []
+            for cat in sorted(groups):
+                cat_label = self._cat_label(cat)
+                lines.append(f"[{cat_label}]")
+                for s in groups[cat]:
+                    desc = self._compress_description(s.description, 200)
+                    lines.append(f"  {s.name} — {desc}")
+            return "\n".join(lines)
+
+        # ── Compact mode: hot skills expanded, cold as name lists ────
+        hot_lines: list[str] = []
+        cold_groups: dict[str, list[str]] = {}
+
         for cat in sorted(groups):
-            cat_label = cat
-            if cat != "general":
-                cat_meta = self._categories.get(cat)
-                if cat_meta and cat_meta.name:
-                    cat_label = cat_meta.name
-            lines.append(f"[{cat_label}]")
             for s in groups[cat]:
-                desc = s.description.strip().strip('"')
-                if len(desc) > 200:
-                    cut = desc.rfind(".", 0, 200)
-                    if cut > 80:
-                        desc = desc[: cut + 1]
-                    else:
-                        desc = desc[:197] + "..."
-                lines.append(f"  {s.name} — {desc}")
+                if s.name in hot:
+                    desc = self._compress_description(s.description, 100)
+                    hot_lines.append(f"  {s.name} — {desc}")
+                else:
+                    cat_label = self._cat_label(cat)
+                    cold_groups.setdefault(cat_label, []).append(s.name)
+
+        lines = []
+        if hot_lines:
+            lines.append("[Frequently Used]")
+            lines.extend(hot_lines)
+
+        for cat_label in sorted(cold_groups):
+            names = cold_groups[cat_label]
+            lines.append(f"[{cat_label}] {', '.join(names)}")
 
         return "\n".join(lines)
+
+    def _cat_label(self, cat: str) -> str:
+        if cat == "general":
+            return "general"
+        cat_meta = self._categories.get(cat)
+        return cat_meta.name if cat_meta and cat_meta.name else cat
 
 
 # ── Module-level convenience functions ───────────────────────────────────────

@@ -266,7 +266,39 @@ class Agent:
         if verbose and self._needs_onboarding:
             print("[Agent] No user identity found — onboarding will be triggered")
 
+        self._hot_skills = self._load_hot_skills()
         self._init_system_prompt()
+
+    # ── Hot-skill tracking ────────────────────────────────────────────────
+
+    _HOT_SKILLS_KEY = "_skill_usage"
+    _HOT_SKILLS_TOP_N = 12
+
+    def _load_hot_skills(self) -> set[str]:
+        """Load the set of frequently used skill names from memory."""
+        try:
+            raw = self.memory.list_all().get(self._HOT_SKILLS_KEY, "")
+            if raw:
+                import json as _json
+                usage: dict[str, int] = _json.loads(raw)
+                top = sorted(usage, key=usage.get, reverse=True)[: self._HOT_SKILLS_TOP_N]
+                return set(top)
+        except Exception:
+            pass
+        return set()
+
+    def _record_skill_usage(self, skill_name: str) -> None:
+        """Increment usage count for a skill and persist to memory."""
+        try:
+            import json as _json
+            raw = self.memory.list_all().get(self._HOT_SKILLS_KEY, "")
+            usage: dict[str, int] = _json.loads(raw) if raw else {}
+            usage[skill_name] = usage.get(skill_name, 0) + 1
+            self.memory.remember(_json.dumps(usage), self._HOT_SKILLS_KEY)
+            top = sorted(usage, key=usage.get, reverse=True)[: self._HOT_SKILLS_TOP_N]
+            self._hot_skills = set(top)
+        except Exception:
+            pass
 
     @staticmethod
     def _has_user_identity(soul_path: str | None, persona_path: str | None) -> bool:
@@ -294,7 +326,10 @@ class Agent:
         LLM decide when to activate a skill without any discovery calls.
         """
         self._registry = SkillRegistry(skills_dirs=self.skills_dirs)
-        skill_catalog = self._registry.build_catalog()
+        skill_catalog = self._registry.build_compact_catalog(
+            hot_skills=self._hot_skills,
+            compact=bool(self._hot_skills),
+        )
 
         soul_section = f"\n\n## Core Identity (Soul)\n{self.soul_instruction}" if self.soul_instruction else ""
         persona_section = f"\n\n## Role & Persona\n{self.persona_instruction}" if self.persona_instruction else ""
@@ -372,11 +407,11 @@ Your responsibilities:
 {skill_catalog}
 
 **SKILL USAGE RULES**:
-- The catalog above is Level 1 metadata only (~100 tokens/skill). Full instructions load on-demand.
-- **ALWAYS call `use_skill(name)` BEFORE attempting any skill-related task.** The catalog description tells you WHEN to activate; the loaded instructions tell you HOW.
-- Load multiple relevant skills in parallel when a task spans domains (e.g. `use_skill("stock-analysis")` + `use_skill("technical_analysis")` for a full stock review).
+- The catalog above shows frequently-used skills with descriptions; other skills are listed by name under their category.
+- **ALWAYS call `use_skill(name)` BEFORE attempting any skill-related task.** Full instructions load on-demand.
+- Use `search_skills(query)` to find skills by keyword when the right skill isn't obvious from the catalog.
+- Load multiple relevant skills in parallel when a task spans domains.
 - After activation, follow the skill's instructions precisely — they contain scripts, APIs, and workflows.
-- Skill resources (scripts, references) are Level 3 — access via `read_file` / `run_command` as the instructions direct.
 
 **Memory**: `remember(key,val)`, `recall(query)`, `memory_get(path)`, `memory_list_files()`, `forget(key)`, `update_index(content)`
 
@@ -550,6 +585,16 @@ Don't repeat this if `bot_name` already exists in memory.
         try:
             if func_name == "use_skill":
                 result = self._use_skill(args.get("skill_name"))
+            elif func_name == "search_skills":
+                from .skill_loader import search_skills
+                hits = search_skills(args.get("query", ""), self.skills_dirs)
+                if hits:
+                    result = "\n".join(
+                        f"  {h['name']} [{h['category']}] — {h['description'][:120]}"
+                        for h in hits
+                    )
+                else:
+                    result = "No skills matched the query."
             elif func_name == "list_skill_resources":
                 resources = self._registry.list_resources(args.get("skill_name", ""))
                 if resources:
@@ -706,7 +751,10 @@ Don't repeat this if `bot_name` already exists in memory.
     def _refresh_skill_registry(self) -> None:
         """Invalidate the registry cache so newly created skills are discovered."""
         self._registry.invalidate()
-        new_catalog = self._registry.build_catalog()
+        new_catalog = self._registry.build_compact_catalog(
+            hot_skills=self._hot_skills,
+            compact=bool(self._hot_skills),
+        )
         self.messages.append({
             "role": "system",
             "content": (
@@ -818,6 +866,7 @@ Don't repeat this if `bot_name` already exists in memory.
         )
         self.pending_injections.append(injection)
         self.loaded_skill_names.add(skill_name)
+        self._record_skill_usage(skill_name)
         if self.verbose:
             logger.debug("Skill activated: %s (Level 2 loaded)", skill_name)
 

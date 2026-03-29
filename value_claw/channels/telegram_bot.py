@@ -18,13 +18,14 @@ Commands
 
 Access control
 --------------
-Set TELEGRAM_ALLOWED_USERS to a comma-separated list of integer Telegram user
-IDs to restrict access.  Leave empty (or unset) to allow all users.
+**DMs**: Set ``channels.telegram.allowedUsers`` (or env TELEGRAM_ALLOWED_USERS)
+to a comma-separated list of integer Telegram user IDs.  Leave empty to allow
+all users.
 
-Group behaviour
----------------
-Set ``channels.telegram.requireMention`` to ``true`` in value_claw.json to
-require @bot mention in group chats.  DMs always respond.
+**Groups**: Set ``channels.telegram.allowedGroups`` to a list of integer group
+chat IDs.  The bot only responds in these groups.  A @mention is always
+required in group chats.  ``allowedUsers`` is NOT enforced inside whitelisted
+groups — anyone in the group can interact with the bot.
 """
 
 from __future__ import annotations
@@ -67,11 +68,13 @@ class TelegramBot:
         session_manager: "SessionManager",
         token: str,
         allowed_users: list[int] | None = None,
+        allowed_groups: list[int] | None = None,
         require_mention: bool = False,
     ) -> None:
         self._sm = session_manager
         self._token = token
         self._allowed_users: set[int] = set(allowed_users) if allowed_users else set()
+        self._allowed_groups: set[int] = set(allowed_groups) if allowed_groups else set()
         self._require_mention = require_mention
         self._app: Application | None = None
         self._bot_username: str | None = None
@@ -93,14 +96,35 @@ class TelegramBot:
 
     # ── Access control ────────────────────────────────────────────────────────
 
-    def _is_allowed(self, user_id: int) -> bool:
+    def _is_allowed_user(self, user_id: int) -> bool:
         if not self._allowed_users:
             return True
         return user_id in self._allowed_users
 
+    def _is_allowed_group(self, chat_id: int) -> bool:
+        if not self._allowed_groups:
+            return False
+        return chat_id in self._allowed_groups
+
     async def _check_access(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+        """Gate access based on chat type.
+
+        * DMs: enforce ``allowedUsers`` (empty = allow all).
+        * Groups: enforce ``allowedGroups`` whitelist.  Individual user
+          checks are skipped — group membership is the access control.
+        """
+        if self._is_group(update):
+            chat_id = update.effective_chat.id
+            if not self._is_allowed_group(chat_id):
+                logger.info(
+                    "[Telegram] Ignored group chat_id=%s (not in allowedGroups=%s)",
+                    chat_id, self._allowed_groups,
+                )
+                return False
+            return True
+
         user = update.effective_user
-        if user is None or not self._is_allowed(user.id):
+        if user is None or not self._is_allowed_user(user.id):
             logger.warning("[Telegram] Rejected user_id=%s", user.id if user else "unknown")
             await update.message.reply_text("Sorry, you are not authorised to use this bot.")
             return False
@@ -111,7 +135,13 @@ class TelegramBot:
         return update.effective_chat.type in ("group", "supergroup")
 
     def _is_mentioned(self, update: Update) -> bool:
-        """Check if the bot is @mentioned in the message text."""
+        """Check if the bot is @mentioned or replied to."""
+        if update.message.reply_to_message:
+            replied_user = update.message.reply_to_message.from_user
+            if replied_user and replied_user.is_bot and self._bot_username:
+                if replied_user.username and replied_user.username.lower() == self._bot_username.lower():
+                    return True
+
         text = update.message.text or update.message.caption or ""
         if self._bot_username and f"@{self._bot_username}" in text:
             return True
@@ -194,18 +224,36 @@ class TelegramBot:
         count = _cfg.clear_files()
         await update.message.reply_text(f"Cleared {count} file(s) from the downloads folder.")
 
+    async def _cmd_groupid(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Show the current chat ID — useful for adding groups to the whitelist."""
+        chat = update.effective_chat
+        await update.message.reply_text(
+            f"Chat ID: `{chat.id}`\nType: {chat.type}",
+            parse_mode="Markdown",
+        )
+
     # ── Message handler (text + photos) ───────────────────────────────────────
 
     async def _handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        chat = update.effective_chat
+        logger.info(
+            "[Telegram] Incoming message: chat_id=%s type=%s text=%s",
+            chat.id, chat.type,
+            (update.message.text or "")[:60],
+        )
+
         if not await self._check_access(update, context):
             return
 
-        if self._is_group(update) and self._require_mention:
-            if not self._is_mentioned(update):
-                return
+        is_group = self._is_group(update)
+
+        if is_group and not self._is_mentioned(update):
+            logger.info("[Telegram] Group message ignored (no mention)")
+            return
 
         user_text = (update.message.text or update.message.caption or "").strip()
-        user_text = self._strip_mention(user_text)
+        if is_group:
+            user_text = self._strip_mention(user_text)
 
         has_photo = bool(update.message.photo)
         has_voice = bool(update.message.voice or update.message.audio)
@@ -458,6 +506,7 @@ class TelegramBot:
         BotCommand("status", "Show session info"),
         BotCommand("compact", "Compact conversation history"),
         BotCommand("clear_files", "Delete all downloaded files"),
+        BotCommand("groupid", "Show this chat's ID (for whitelist config)"),
         BotCommand("portfolio", "Portfolio status or switch: /portfolio [us-stocks|crypto]"),
         BotCommand("mode", "Switch mode: /mode <live|simulate>"),
         BotCommand("topup", "Add cash: /topup <amount>"),
@@ -471,6 +520,7 @@ class TelegramBot:
         app.add_handler(CommandHandler("status", self._cmd_status))
         app.add_handler(CommandHandler("compact", self._cmd_compact))
         app.add_handler(CommandHandler("clear_files", self._cmd_clear_files))
+        app.add_handler(CommandHandler("groupid", self._cmd_groupid))
         app.add_handler(MessageHandler(
             (filters.TEXT | filters.PHOTO | filters.VOICE | filters.AUDIO)
             & ~filters.COMMAND,
@@ -578,6 +628,9 @@ def create_bot(session_manager: "SessionManager") -> TelegramBot:
     allowed_users = config.get_int_list(
         "channels", "telegram", "allowedUsers", env="TELEGRAM_ALLOWED_USERS",
     )
+    allowed_groups = config.get_int_list(
+        "channels", "telegram", "allowedGroups", env="TELEGRAM_ALLOWED_GROUPS",
+    )
     require_mention = config.get_bool(
         "channels", "telegram", "requireMention", default=False,
     )
@@ -585,6 +638,7 @@ def create_bot(session_manager: "SessionManager") -> TelegramBot:
         session_manager=session_manager,
         token=token,
         allowed_users=allowed_users or None,
+        allowed_groups=allowed_groups or None,
         require_mention=require_mention,
     )
 
