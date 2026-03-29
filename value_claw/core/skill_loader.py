@@ -353,6 +353,8 @@ class SkillRegistry:
         """Build a full skill catalog (legacy — kept for backward compat)."""
         return self.build_compact_catalog(hot_skills=None, compact=False)
 
+    _LARGE_CAT_THRESHOLD = 6
+
     def build_compact_catalog(
         self,
         hot_skills: set[str] | None = None,
@@ -360,16 +362,19 @@ class SkillRegistry:
     ) -> str:
         """Build a token-efficient skill catalog for the system prompt.
 
-        When *compact* is True (default):
-          - **Hot skills** (frequently used): name + compressed description
-          - **Cold skills**: grouped by category as name-only lists
-          - Typical cost: ~800-1200 tokens (vs ~3000 for full catalog)
+        Three modes of operation depending on session state:
 
-        When *compact* is False:
-          - All skills get descriptions (original behavior)
+        **First session** (compact=False, no hot skills):
+          Category name + category description + skill name list.
+          ~800 tokens for 95 skills (vs 3000+ for per-skill descriptions).
+
+        **Returning session** (compact=True, hot skills available):
+          Hot skills with descriptions, cold categories as summarised
+          name lists (large categories show count + sample).
+          ~350 tokens.
 
         The LLM can always ``search_skills(query)`` or ``use_skill(name)``
-        to discover any skill not listed in detail.
+        to discover details for any skill.
         """
         skills = self.discover()
         if not skills:
@@ -382,16 +387,20 @@ class SkillRegistry:
             groups.setdefault(s.category or "general", []).append(s)
 
         if not compact:
+            # First session: category description + name list (no per-skill desc)
             lines: list[str] = []
             for cat in sorted(groups):
                 cat_label = self._cat_label(cat)
-                lines.append(f"[{cat_label}]")
-                for s in groups[cat]:
-                    desc = self._compress_description(s.description, 200)
-                    lines.append(f"  {s.name} — {desc}")
+                cat_meta = self._categories.get(cat)
+                cat_desc = ""
+                if cat_meta and cat_meta.description:
+                    cat_desc = f" — {self._compress_description(cat_meta.description, 80)}"
+                names = [s.name for s in groups[cat]]
+                lines.append(f"[{cat_label}]{cat_desc}")
+                lines.append(f"  {', '.join(names)}")
             return "\n".join(lines)
 
-        # ── Compact mode: hot skills expanded, cold as name lists ────
+        # Compact mode: hot skills expanded, cold summarised
         hot_lines: list[str] = []
         cold_groups: dict[str, list[str]] = {}
 
@@ -411,7 +420,15 @@ class SkillRegistry:
 
         for cat_label in sorted(cold_groups):
             names = cold_groups[cat_label]
-            lines.append(f"[{cat_label}] {', '.join(names)}")
+            if len(names) > self._LARGE_CAT_THRESHOLD:
+                sample = ", ".join(names[:3])
+                lines.append(
+                    f"[{cat_label}] {len(names)} skills: {sample} ..."
+                )
+            else:
+                lines.append(f"[{cat_label}] {', '.join(names)}")
+
+        lines.append(f"({len(skills)} skills total — use search_skills(query) to find more)")
 
         return "\n".join(lines)
 
@@ -436,13 +453,21 @@ def search_skills(
     query: str,
     skills_dirs: list[str] | None = None,
 ) -> list[dict]:
-    """Search skills by keyword match in name or description."""
-    q = query.lower()
-    return [
-        {"name": s.name, "description": s.description, "category": s.category}
-        for s in SkillRegistry(skills_dirs).discover()
-        if q in s.name.lower() or q in s.description.lower()
-    ]
+    """Search skills by keyword match in name, description, or category.
+
+    Supports multi-word queries (all words must match).
+    """
+    words = query.lower().split()
+    if not words:
+        return []
+    results = []
+    for s in SkillRegistry(skills_dirs).discover():
+        blob = f"{s.name} {s.description} {s.category}".lower()
+        if all(w in blob for w in words):
+            results.append(
+                {"name": s.name, "description": s.description, "category": s.category}
+            )
+    return results
 
 
 def list_skills_in_category(
