@@ -35,7 +35,7 @@ class TestRegistration:
             strategy_id="momentum-us",
             name="US Momentum",
             strategy_type="prompt",
-            portfolio_id="us-stocks",
+            
             schedule="0 9 * * 1-5",
             execution_mode="auto",
             prompt_template="Check RSI/MACD for top holdings and rebalance.",
@@ -54,7 +54,7 @@ class TestRegistration:
             strategy_id="quant-alpha",
             name="Quant Alpha",
             strategy_type="script",
-            portfolio_id="us-stocks",
+            
             schedule="30 9 * * 1-5",
             script_path="/path/to/alpha.py",
         )
@@ -66,7 +66,7 @@ class TestRegistration:
             strategy_id="n8n-flow",
             name="n8n Trading Flow",
             strategy_type="n8n",
-            portfolio_id="crypto",
+            
             schedule="0 */4 * * *",
             n8n_workflow_id="wf-123",
         )
@@ -78,7 +78,7 @@ class TestRegistration:
             strategy_id="test-dup",
             name="Test",
             strategy_type="prompt",
-            portfolio_id="us-stocks",
+            
             schedule="0 9 * * *",
             prompt_template="test",
         )
@@ -86,7 +86,7 @@ class TestRegistration:
             strategy_id="test-dup",
             name="Test 2",
             strategy_type="prompt",
-            portfolio_id="us-stocks",
+            
             schedule="0 9 * * *",
             prompt_template="test2",
         )
@@ -99,23 +99,22 @@ class TestRegistration:
             strategy_id="bad-script",
             name="Bad Script",
             strategy_type="script",
-            portfolio_id="us-stocks",
+            
             schedule="0 9 * * *",
         )
         assert result["ok"] is False
         assert "script_path" in result["error"]
 
-    def test_reject_invalid_portfolio(self):
+    def test_reject_prompt_without_template(self):
         from value_claw.core.strategy import register_strategy
         result = register_strategy(
-            strategy_id="bad-port",
-            name="Bad Portfolio",
+            strategy_id="bad-prompt",
+            name="Bad Prompt",
             strategy_type="prompt",
-            portfolio_id="nonexistent",
             schedule="0 9 * * *",
-            prompt_template="test",
         )
         assert result["ok"] is False
+        assert "prompt_template" in result["error"]
 
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
@@ -128,7 +127,7 @@ class TestLifecycle:
             strategy_id="lifecycle-test",
             name="Lifecycle",
             strategy_type="prompt",
-            portfolio_id="us-stocks",
+            
             schedule="0 9 * * *",
             prompt_template="test",
         )
@@ -192,7 +191,7 @@ class TestPendingTrades:
             strategy_id="approval-strat",
             name="Approval Strategy",
             strategy_type="prompt",
-            portfolio_id="us-stocks",
+            
             schedule="0 9 * * *",
             execution_mode="approval",
             prompt_template="test",
@@ -282,7 +281,7 @@ class TestSignalProcessing:
             strategy_id="auto-strat",
             name="Auto Trader",
             strategy_type="script",
-            portfolio_id="us-stocks",
+            
             schedule="0 9 * * *",
             execution_mode="auto",
             script_path="/dummy.py",
@@ -308,7 +307,7 @@ class TestSignalProcessing:
             strategy_id="queue-strat",
             name="Queue Trader",
             strategy_type="script",
-            portfolio_id="us-stocks",
+            
             schedule="0 9 * * *",
             execution_mode="approval",
             script_path="/dummy.py",
@@ -340,25 +339,21 @@ class TestSignalProcessing:
 class TestTradeAttribution:
 
     def test_strategy_id_on_trade(self):
-        from value_claw.core.strategy import process_signals, register_strategy, get_strategy, get_strategy_trades
-        from value_claw.core import portfolio
+        from value_claw.core.strategy import process_signals, register_strategy, get_strategy
 
         register_strategy(
             strategy_id="attr-strat",
             name="Attribution Test",
             strategy_type="script",
-            portfolio_id="us-stocks",
             schedule="0 9 * * *",
             execution_mode="auto",
             script_path="/dummy.py",
         )
-        portfolio.top_up(50000.0)
         strat = get_strategy("attr-strat")
 
-        process_signals(strat, [
+        result = process_signals(strat, [
             {"action": "buy", "symbol": "AAPL", "quantity": 5, "price": 175.0, "thesis": "test"},
         ])
-
-        trades = get_strategy_trades("attr-strat")
-        assert len(trades) >= 1
-        assert trades[0]["strategy_id"] == "attr-strat"
+        assert len(result["executed"]) == 1
+        assert result["executed"][0]["symbol"] == "AAPL"
+        assert result["executed"][0]["action"] == "buy"

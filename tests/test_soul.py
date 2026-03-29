@@ -225,14 +225,14 @@ class TestTelegramBot:
     def test_allowlist_empty_allows_all(self):
         from value_claw.channels.telegram_bot import TelegramBot
         bot = TelegramBot(session_manager=self._make_sm(), token="dummy", allowed_users=None)
-        assert bot._is_allowed(123456)
-        assert bot._is_allowed(999999)
+        assert bot._is_allowed_user(123456)
+        assert bot._is_allowed_user(999999)
 
     def test_allowlist_restricts_access(self):
         from value_claw.channels.telegram_bot import TelegramBot
         bot = TelegramBot(session_manager=self._make_sm(), token="dummy", allowed_users=[111, 222])
-        assert bot._is_allowed(111)
-        assert not bot._is_allowed(333)
+        assert bot._is_allowed_user(111)
+        assert not bot._is_allowed_user(333)
 
     def test_session_id_format(self):
         from value_claw.channels.telegram_bot import TelegramBot
