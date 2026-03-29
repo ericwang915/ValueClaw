@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """Stock analysis and candlestick chart generation with technical indicators."""
 
-import os
 import datetime
+import os
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import mplfinance as mpf
 import numpy as np
 import pandas as pd
 import yfinance as yf
-import mplfinance as mpf
 from scipy.signal import argrelextrema
 
 

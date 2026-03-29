@@ -23,6 +23,7 @@ ensure_venv()
 
 from fetch_news import PortfolioError, get_market_news, get_portfolio_movers, get_portfolio_news  # noqa: E402
 from ranking import rank_headlines  # noqa: E402
+
 from research import generate_research_content  # noqa: E402
 
 SCRIPT_DIR = Path(__file__).parent

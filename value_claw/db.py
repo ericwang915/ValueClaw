@@ -341,7 +341,7 @@ def get_daily_values(
     if not _initialized:
         return []
     try:
-        sa = _get_sa()
+        _get_sa()
         cutoff = date.today().toordinal() - days
         cutoff_date = date.fromordinal(cutoff)
         with get_session() as session:
@@ -492,7 +492,7 @@ def get_snapshots_from_db(
     if not _initialized:
         return []
     try:
-        sa = _get_sa()
+        _get_sa()
         cutoff = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)
         from datetime import timedelta
         cutoff = cutoff - timedelta(days=days)

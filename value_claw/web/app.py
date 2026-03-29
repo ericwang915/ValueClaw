@@ -900,8 +900,9 @@ async def _api_strategy_list():
 
 
 async def _api_strategy_get(sid: str):
-    from ..core.strategy import get_strategy, get_strategy_trades, list_pending_trades
     from dataclasses import asdict
+
+    from ..core.strategy import get_strategy, get_strategy_trades, list_pending_trades
     strat = get_strategy(sid)
     if not strat:
         return JSONResponse({"ok": False, "error": f"Strategy '{sid}' not found."}, status_code=404)

@@ -13,9 +13,9 @@ from typing import Any, Dict, List, Optional
 import anthropic
 
 from .base import LLMProvider
+from .response import MockChoice, MockFunction, MockMessage, MockResponse, MockToolCall
 
 logger = logging.getLogger(__name__)
-from .response import MockChoice, MockFunction, MockMessage, MockResponse, MockToolCall
 
 
 _OAUTH_BETAS = ",".join([

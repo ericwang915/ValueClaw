@@ -105,7 +105,7 @@ def main():
         print(json.dumps({"success": success, "result": result}, indent=2))
     else:
         if success:
-            print(f"Tweet posted successfully!")
+            print("Tweet posted successfully!")
             print(f"  ID: {result['id']}")
             print(f"  URL: {result['url']}")
             print(f"  Text: {result['text']}")

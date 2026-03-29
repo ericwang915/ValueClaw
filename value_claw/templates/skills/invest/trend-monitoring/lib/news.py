@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """News fetching via Yahoo Finance with article summary scraping."""
 
-import os
 import datetime
-import requests
+import os
+
 import pandas as pd
+import requests
 import yfinance as yf
 from bs4 import BeautifulSoup
-
 
 _UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 

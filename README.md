@@ -13,10 +13,7 @@
   <a href="https://github.com/ericwang915/ValueClaw/actions/workflows/ci.yml">
     <img src="https://github.com/ericwang915/ValueClaw/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <a href="https://pypi.org/project/value_claw/">
-    <img src="https://img.shields.io/pypi/v/value_claw?color=blue" alt="PyPI">
-  </a>
-  <img src="https://img.shields.io/pypi/pyversions/value_claw" alt="Python">
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/ericwang915/ValueClaw" alt="MIT License">
   </a>

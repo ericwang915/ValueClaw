@@ -17,13 +17,11 @@ Usage:
 """
 
 import argparse
-import json
-import sys
 import os
-import time
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ib_helpers import add_connection_args, connect_ib, fmt_currency, fmt_number, print_table, now_str
+from ib_helpers import add_connection_args, connect_ib, fmt_currency, fmt_number, now_str, print_table
 
 
 def cmd_list(args):
@@ -59,7 +57,7 @@ def cmd_list(args):
 
 def cmd_place(args):
     """Place a new order."""
-    from ib_insync import Stock, Option, Future, Forex, Contract, MarketOrder, LimitOrder, StopOrder, StopLimitOrder
+    from ib_insync import Forex, Future, LimitOrder, MarketOrder, Option, Stock, StopLimitOrder, StopOrder
 
     contract_builders = {
         "STK": lambda a: Stock(a.symbol, a.exchange or "SMART", a.currency),
@@ -123,7 +121,7 @@ def cmd_place(args):
     if args.tif:
         print(f"  TIF:        {args.tif.upper()}")
     if args.outside_rth:
-        print(f"  Outside RTH: Yes")
+        print("  Outside RTH: Yes")
     print("=" * 50)
 
     if not args.confirm:
@@ -140,7 +138,7 @@ def cmd_place(args):
         ib.sleep(2)
 
         status = trade.orderStatus
-        print(f"\nOrder submitted!")
+        print("\nOrder submitted!")
         print(f"  Order ID:  {trade.order.orderId}")
         print(f"  Status:    {status.status}")
         if status.filled:

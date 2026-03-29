@@ -30,7 +30,6 @@ import signal
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import yaml
@@ -49,7 +48,8 @@ _HAS_PREFECT = False
 _prefect_flow_fn = None
 
 try:
-    from prefect import flow as _pf, tags as _pt
+    from prefect import flow as _pf
+    from prefect import tags as _pt
 
     @_pf(name="cron-job", log_prints=True)
     def _tracked_execute(job_id: str, prompt: str) -> str:

@@ -2,6 +2,7 @@
 """Build LLM analysis prompt from key stats and news data."""
 
 import os
+
 import pandas as pd
 import yfinance as yf
 

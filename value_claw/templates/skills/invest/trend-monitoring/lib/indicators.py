@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """TradingView technical indicator table generation as an image."""
 
-import os
 import datetime
+import os
+
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 try:
-    from tradingview_ta import TA_Handler, Interval
+    from tradingview_ta import Interval, TA_Handler
 except ImportError:
     TA_Handler = None
 

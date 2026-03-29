@@ -1043,8 +1043,9 @@ def _benchmark_return(portfolio_id: str, days: int) -> float | None:
     if not bench:
         return None
     try:
-        import yfinance as yf
         from datetime import timedelta
+
+        import yfinance as yf
         end = datetime.now(timezone.utc)
         start = end - timedelta(days=days)
         data = yf.download(bench, start=start.strftime("%Y-%m-%d"), end=end.strftime("%Y-%m-%d"), progress=False)

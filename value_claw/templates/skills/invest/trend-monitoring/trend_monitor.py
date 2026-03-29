@@ -18,10 +18,10 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
-from lib.chart import analyze_stock
-from lib.indicators import generate_indicator_chart
-from lib.news import fetch_all_news
-from lib.prompt import generate_key_stats, generate_analysis_prompt
+from lib.chart import analyze_stock  # noqa: E402
+from lib.indicators import generate_indicator_chart  # noqa: E402
+from lib.news import fetch_all_news  # noqa: E402
+from lib.prompt import generate_analysis_prompt, generate_key_stats  # noqa: E402
 
 DEFAULT_TICKERS = ["TSLA", "AAPL", "NVDA", "AMD", "MSFT", "GOOGL", "AMZN"]
 DATA_DIR = os.path.expanduser("~/.value_claw/trend_monitoring")
@@ -287,14 +287,14 @@ def run_pipeline(tickers, config, skip_llm=False, skip_news=False, output_format
     for i, ticker in enumerate(tickers, 1):
         print(f"\n[2/4] Analyzing {ticker} ({i}/{len(tickers)})...")
 
-        print(f"  Generating key stats...")
+        print("  Generating key stats...")
         generate_key_stats(ticker, output_dir)
 
-        print(f"  Generating trend chart...")
+        print("  Generating trend chart...")
         res = analyze_stock(ticker, output_dir)
         trend_path = res.get("ChartPath") if res else None
 
-        print(f"  Generating indicator table...")
+        print("  Generating indicator table...")
         indicator_path = generate_indicator_chart(ticker, output_dir)
 
         combined_path = combine_images(trend_path, indicator_path, output_dir, ticker)
@@ -302,7 +302,7 @@ def run_pipeline(tickers, config, skip_llm=False, skip_news=False, output_format
         signal, confidence, summary = "N/A", "N/A", "LLM analysis skipped"
 
         if not skip_llm:
-            print(f"  Building prompt & querying LLM...")
+            print("  Building prompt & querying LLM...")
             prompt = generate_analysis_prompt(ticker, output_dir)
             llm_raw = query_llm(prompt, config)
             signal, confidence, summary = parse_llm_output(llm_raw)
@@ -364,7 +364,7 @@ def main():
         tm_cfg = config.get("skills", {}).get("trendMonitoring", {})
         tickers = tm_cfg.get("defaultTickers", DEFAULT_TICKERS)
 
-    print(f"Trend Monitoring Pipeline")
+    print("Trend Monitoring Pipeline")
     print(f"Tickers: {', '.join(tickers)}")
     print(f"LLM: {'skip' if args.no_llm else 'enabled'}")
     print(f"News: {'skip' if args.no_news else 'enabled'}")
