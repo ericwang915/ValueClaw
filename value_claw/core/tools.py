@@ -310,25 +310,34 @@ PRIMITIVE_TOOLS: list[dict] = [
 
 SKILL_TOOLS: list[dict] = [
     _fn(
-        "use_skill",
+        "explore_category",
         (
-            "Activate a skill by name. "
-            "This loads the skill's detailed instructions and workflow into context. "
-            "Only call this when you've identified the right skill from the catalog "
-            "in the system prompt."
+            "List all skills in a category with descriptions. "
+            "Use this to discover available skills before calling use_skill. "
+            "Accepts category display name (e.g. 'Fixed Income') or slug ('fixed-income')."
         ),
-        {"skill_name": {"type": "string", "description": "Exact skill name from the catalog."}},
-        ["skill_name"],
+        {"category": {"type": "string", "description": "Category name to explore."}},
+        ["category"],
     ),
     _fn(
         "search_skills",
         (
-            "Search for skills by keyword. Returns matching skill names, "
-            "descriptions, and categories. Use when you need a capability "
-            "not listed in the frequently-used skills."
+            "Search for skills by keyword across all categories. Returns matching "
+            "skill names, descriptions, and categories. Use when you're unsure "
+            "which category a skill belongs to."
         ),
-        {"query": {"type": "string", "description": "Keyword to search for (e.g. 'pdf', 'stock', 'translate')."}},
+        {"query": {"type": "string", "description": "Keyword to search for (e.g. 'bond', 'stock', 'translate')."}},
         ["query"],
+    ),
+    _fn(
+        "use_skill",
+        (
+            "Activate a skill by name. Loads the skill's detailed instructions "
+            "and workflow into context. ALWAYS call this before attempting any "
+            "skill-related task."
+        ),
+        {"skill_name": {"type": "string", "description": "Exact skill name."}},
+        ["skill_name"],
     ),
     _fn(
         "list_skill_resources",

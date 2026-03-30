@@ -353,28 +353,22 @@ class SkillRegistry:
         """Build a full skill catalog (legacy — kept for backward compat)."""
         return self.build_compact_catalog(hot_skills=None, compact=False)
 
-    _LARGE_CAT_THRESHOLD = 6
-
     def build_compact_catalog(
         self,
         hot_skills: set[str] | None = None,
         compact: bool = True,
     ) -> str:
-        """Build a token-efficient skill catalog for the system prompt.
+        """Build a progressive-discovery catalog for the system prompt.
 
-        Three modes of operation depending on session state:
+        The catalog only lists **categories** (not individual skills).
+        The LLM uses ``explore_category(name)`` to drill into a category,
+        ``search_skills(query)`` for cross-category keyword search, and
+        ``use_skill(name)`` to load full instructions.
 
-        **First session** (compact=False, no hot skills):
-          Category name + category description + skill name list.
-          ~800 tokens for 95 skills (vs 3000+ for per-skill descriptions).
+        Hot skills (frequently used) are always shown with descriptions
+        so the LLM can activate them directly without an extra round-trip.
 
-        **Returning session** (compact=True, hot skills available):
-          Hot skills with descriptions, cold categories as summarised
-          name lists (large categories show count + sample).
-          ~350 tokens.
-
-        The LLM can always ``search_skills(query)`` or ``use_skill(name)``
-        to discover details for any skill.
+        Typical token cost: ~150-250 tokens for 95 skills across 18 categories.
         """
         skills = self.discover()
         if not skills:
@@ -386,50 +380,73 @@ class SkillRegistry:
         for s in skills:
             groups.setdefault(s.category or "general", []).append(s)
 
-        if not compact:
-            # First session: category description + name list (no per-skill desc)
-            lines: list[str] = []
-            for cat in sorted(groups):
-                cat_label = self._cat_label(cat)
-                cat_meta = self._categories.get(cat)
-                cat_desc = ""
-                if cat_meta and cat_meta.description:
-                    cat_desc = f" — {self._compress_description(cat_meta.description, 80)}"
-                names = [s.name for s in groups[cat]]
-                lines.append(f"[{cat_label}]{cat_desc}")
-                lines.append(f"  {', '.join(names)}")
-            return "\n".join(lines)
+        lines: list[str] = []
 
-        # Compact mode: hot skills expanded, cold summarised
-        hot_lines: list[str] = []
-        cold_groups: dict[str, list[str]] = {}
-
-        for cat in sorted(groups):
-            for s in groups[cat]:
+        # Hot skills with descriptions (direct activation, no extra call)
+        if hot:
+            hot_lines: list[str] = []
+            for s in skills:
                 if s.name in hot:
                     desc = self._compress_description(s.description, 100)
                     hot_lines.append(f"  {s.name} — {desc}")
-                else:
-                    cat_label = self._cat_label(cat)
-                    cold_groups.setdefault(cat_label, []).append(s.name)
+            if hot_lines:
+                lines.append("[Frequently Used]")
+                lines.extend(hot_lines)
+                lines.append("")
 
-        lines = []
-        if hot_lines:
-            lines.append("[Frequently Used]")
-            lines.extend(hot_lines)
-
-        for cat_label in sorted(cold_groups):
-            names = cold_groups[cat_label]
-            if len(names) > self._LARGE_CAT_THRESHOLD:
-                sample = ", ".join(names[:3])
-                lines.append(
-                    f"[{cat_label}] {len(names)} skills: {sample} ..."
-                )
+        # Category-only listing
+        lines.append("[Categories]")
+        for cat in sorted(groups):
+            label = self._cat_label(cat)
+            count = len(groups[cat])
+            cat_meta = self._categories.get(cat)
+            if cat_meta and cat_meta.description:
+                desc = self._compress_description(cat_meta.description, 60)
+                lines.append(f"  {label} ({count}) — {desc}")
             else:
-                lines.append(f"[{cat_label}] {', '.join(names)}")
+                lines.append(f"  {label} ({count})")
 
-        lines.append(f"({len(skills)} skills total — use search_skills(query) to find more)")
+        lines.append(
+            f"\n({len(skills)} skills total — "
+            "explore_category(name) to see skills, "
+            "search_skills(query) to search, "
+            "use_skill(name) to activate)"
+        )
 
+        return "\n".join(lines)
+
+    def explore_category(self, category: str) -> str:
+        """Return skill names and descriptions for a given category.
+
+        Accepts both the display name (e.g. 'Fixed Income') and the
+        directory slug (e.g. 'fixed-income'). Case-insensitive.
+        """
+        skills = self.discover()
+        _ = self.categories  # ensure populated
+
+        # Build lookup: slug → slug, display-name-lower → slug
+        slug_map: dict[str, str] = {}
+        for cat_slug in {s.category for s in skills if s.category}:
+            slug_map[cat_slug.lower()] = cat_slug
+            label = self._cat_label(cat_slug)
+            slug_map[label.lower()] = cat_slug
+
+        target = slug_map.get(category.lower().strip())
+        if not target:
+            available = ", ".join(
+                self._cat_label(c) for c in sorted({s.category for s in skills if s.category})
+            )
+            return f"Category '{category}' not found. Available: {available}"
+
+        matched = [s for s in skills if s.category == target]
+        if not matched:
+            return f"No skills in category '{category}'."
+
+        label = self._cat_label(target)
+        lines = [f"[{label}] — {len(matched)} skills:"]
+        for s in matched:
+            desc = self._compress_description(s.description, 120)
+            lines.append(f"  {s.name} — {desc}")
         return "\n".join(lines)
 
     def _cat_label(self, cat: str) -> str:
@@ -468,6 +485,14 @@ def search_skills(
                 {"name": s.name, "description": s.description, "category": s.category}
             )
     return results
+
+
+def explore_category_by_name(
+    category: str,
+    skills_dirs: list[str] | None = None,
+) -> str:
+    """Return skill listing for a category (convenience wrapper)."""
+    return SkillRegistry(skills_dirs).explore_category(category)
 
 
 def list_skills_in_category(

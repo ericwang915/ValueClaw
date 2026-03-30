@@ -403,15 +403,15 @@ Your responsibilities:
 
 **Primitives**: `run_command`, `read_file`, `write_file`, `list_files`
 
-**Skills** (progressive disclosure — metadata below, call `use_skill(name)` to load full instructions):
+**Skills** (progressive discovery — categories listed below):
 {skill_catalog}
 
-**SKILL USAGE RULES**:
-- The catalog above shows frequently-used skills with descriptions; other skills are listed by name under their category.
-- **ALWAYS call `use_skill(name)` BEFORE attempting any skill-related task.** Full instructions load on-demand.
-- Use `search_skills(query)` to find skills by keyword when the right skill isn't obvious from the catalog.
-- Load multiple relevant skills in parallel when a task spans domains.
-- After activation, follow the skill's instructions precisely — they contain scripts, APIs, and workflows.
+**SKILL DISCOVERY RULES** (two-stage progressive loading):
+1. The catalog lists **categories only** (plus your frequently-used skills).
+2. Call `explore_category(name)` to see all skills in a category.
+3. Call `search_skills(query)` for cross-category keyword search.
+4. Call `use_skill(name)` to load a skill's full instructions — **ALWAYS do this before using any skill.**
+5. After activation, follow the skill's instructions precisely.
 
 **Memory**: `remember(key,val)`, `recall(query)`, `memory_get(path)`, `memory_list_files()`, `forget(key)`, `update_index(content)`
 
@@ -583,7 +583,9 @@ Don't repeat this if `bot_name` already exists in memory.
             logger.debug("Tool: %s  args=%s", func_name, args)
 
         try:
-            if func_name == "use_skill":
+            if func_name == "explore_category":
+                result = self._registry.explore_category(args.get("category", ""))
+            elif func_name == "use_skill":
                 result = self._use_skill(args.get("skill_name"))
             elif func_name == "search_skills":
                 from .skill_loader import search_skills
