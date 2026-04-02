@@ -1251,6 +1251,10 @@ Don't repeat this if `bot_name` already exists in memory.
                 self._maybe_auto_compact()
                 messages_to_send = self._get_pruned_messages()
 
+                logger.info(
+                    "[chat_stream] round=%d sending %d messages",
+                    tool_rounds, len(messages_to_send),
+                )
                 gen = self.provider.chat_stream(
                     messages=messages_to_send,
                     tools=current_tools,
@@ -1267,9 +1271,16 @@ Don't repeat this if `bot_name` already exists in memory.
                         break
 
                 if response is None:
+                    logger.warning("[chat_stream] got None response")
                     return ""
 
                 message = response.choices[0].message
+                logger.info(
+                    "[chat_stream] round=%d has_content=%s tool_calls=%d",
+                    tool_rounds,
+                    bool(message.content),
+                    len(message.tool_calls) if message.tool_calls else 0,
+                )
 
                 if not message.tool_calls:
                     self.messages.append(message.model_dump())
@@ -1315,8 +1326,9 @@ Don't repeat this if `bot_name` already exists in memory.
                 tool_calls = message.tool_calls
                 tool_calls = self._cap_parallel_skills(tool_calls)
 
+                names = ", ".join(tc.function.name for tc in tool_calls)
+                logger.info("[chat_stream] executing tools: %s", names)
                 if on_token:
-                    names = ", ".join(tc.function.name for tc in tool_calls)
                     on_token(f"\n\n`[calling: {names}]`\n\n")
 
                 results: dict[str, str] = {}
