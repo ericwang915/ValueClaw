@@ -329,17 +329,33 @@ class AnthropicProvider(LLMProvider):
         rejects plain-string ``content`` on any message when this beta
         is active.  Also strips extra keys (``_ts``, etc.) that
         Pydantic validation would reject.
+
+        Empty text blocks are replaced with a single space — the API
+        returns 400 if any text block has an empty string.
         """
-        _ALLOWED_KEYS = {"role", "content"}
+        _PLACEHOLDER = " "
         out = []
         for msg in messages:
             content = msg.get("content")
             if isinstance(content, str):
-                content = [{"type": "text", "text": content}]
+                content = [{"type": "text", "text": content or _PLACEHOLDER}]
             elif content is None:
-                content = [{"type": "text", "text": ""}]
-            elif not isinstance(content, list):
-                content = [{"type": "text", "text": str(content)}]
+                content = [{"type": "text", "text": _PLACEHOLDER}]
+            elif isinstance(content, list):
+                fixed: list[dict] = []
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        text = block.get("text", "")
+                        if not text or not text.strip():
+                            block = {**block, "text": _PLACEHOLDER}
+                        fixed.append(block)
+                    elif isinstance(block, dict):
+                        fixed.append(block)
+                    else:
+                        fixed.append({"type": "text", "text": str(block) or _PLACEHOLDER})
+                content = fixed if fixed else [{"type": "text", "text": _PLACEHOLDER}]
+            else:
+                content = [{"type": "text", "text": str(content) or _PLACEHOLDER}]
             clean = {"role": msg["role"], "content": content}
             out.append(clean)
         return out
