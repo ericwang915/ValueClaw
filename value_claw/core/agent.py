@@ -487,11 +487,30 @@ Don't repeat this if `bot_name` already exists in memory.
         "下单", "买入", "卖出", "持仓", "仓位",
     })
     _CRON_KEYWORDS = frozenset({
-        "cron", "schedule", "定时", "scheduled", "timer",
-        "recurring", "job", "每天", "每日", "每周", "每月",
-        "晚上", "早上", "监控", "推送", "自动", "提醒",
-        "daily", "weekly", "monthly", "every day", "every hour",
-        "alert", "notify", "monitor", "automation",
+        # English
+        "cron", "schedule", "scheduled", "scheduling", "timer",
+        "recurring", "recurrence", "job", "automation", "automate",
+        "daily", "weekly", "monthly", "hourly", "nightly",
+        "every day", "every hour", "every week", "every month",
+        "every morning", "every evening", "every night",
+        "at 9", "at 10", "at 8",
+        "alert", "alerts", "notify", "notification", "reminder",
+        "monitor", "monitoring", "watchlist", "watch list",
+        "report", "digest", "summary", "briefing",
+        "market open", "market close", "pre-market", "after-hours",
+        "morning brief", "evening brief",
+        # Chinese
+        "定时", "定期", "计划", "排程", "调度",
+        "每天", "每日", "每周", "每月", "每小时", "每隔",
+        "每年", "每分钟", "每个交易日",
+        "晚上", "早上", "上午", "下午", "凌晨", "中午",
+        "监控", "监测", "盯盘", "跟踪", "追踪",
+        "推送", "通知", "提醒", "预警", "警报",
+        "自动", "自动化", "自动发送", "自动执行",
+        "开盘", "收盘", "盘前", "盘后",
+        "日报", "周报", "月报", "晨报", "早报", "晚报",
+        "播报", "汇总", "简报", "复盘",
+        "九点", "十点", "八点", "七点",
     })
 
     def _build_tools(self) -> list[dict]:
