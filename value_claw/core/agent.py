@@ -363,6 +363,7 @@ class Agent:
 4. `use_skill(name)` → load full instructions. **ALWAYS call before using a skill.**
 
 **Memory**: `remember(key,val)`, `recall(query)`, `memory_get(path)`, `forget(key)`, `update_index(content)`
+**Scheduling**: `add_cron`, `list_crons`, `remove_cron` — schedule recurring tasks (daily reports, alerts, monitoring)
 **Skill creation**: `create_skill` — create new skills on the fly{web_search_section}
 
 ### Stock Analysis Protocol
@@ -483,10 +484,14 @@ Don't repeat this if `bot_name` already exists in memory.
     _STRATEGY_KEYWORDS = frozenset({
         "strategy", "策略", "交易策略", "strategy_",
         "pending", "approve", "reject", "trade",
+        "下单", "买入", "卖出", "持仓", "仓位",
     })
     _CRON_KEYWORDS = frozenset({
         "cron", "schedule", "定时", "scheduled", "timer",
-        "recurring", "job",
+        "recurring", "job", "每天", "每日", "每周", "每月",
+        "晚上", "早上", "监控", "推送", "自动", "提醒",
+        "daily", "weekly", "monthly", "every day", "every hour",
+        "alert", "notify", "monitor", "automation",
     })
 
     def _build_tools(self) -> list[dict]:
