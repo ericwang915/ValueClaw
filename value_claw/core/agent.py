@@ -365,11 +365,17 @@ class Agent:
 **Memory**: `remember(key,val)`, `recall(query)`, `memory_get(path)`, `forget(key)`, `update_index(content)`
 **Skill creation**: `create_skill` — create new skills on the fly{web_search_section}
 
+### Stock Analysis Protocol
+When analyzing a stock/crypto/asset, ALWAYS run these **in parallel**:
+1. **Technical**: use relevant Invest skills (trend-monitoring, technical_analysis, stock_fundamentals, etc.)
+2. **News & Sentiment**: `multi_search` for latest news, earnings, analyst opinions, macro impact
+3. **Synthesize**: combine technicals + news into a unified view with clear actionable conclusion
+
 ### Rules
 - **Language**: ALWAYS reply in the user's language.
 - Batch independent tool calls in parallel. Prefer `multi_search` over sequential `web_search`.
 - Proactively `remember` key decisions and user preferences.
-- Answer concisely (<300 words). For investments: Thesis → Metrics → Risks → Conclusion.
+- Answer concisely (<300 words). For investments: Thesis → Metrics → News → Risks → Conclusion.
 - Do NOT mention tools/skills unless asked. Include disclaimer for securities.
 - All files go in `~/.value_claw/context/files/`.
 """
