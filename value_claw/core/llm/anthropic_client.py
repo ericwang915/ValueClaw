@@ -145,9 +145,9 @@ class AnthropicProvider(LLMProvider):
             if system_prompt:
                 sys_blocks.append({"type": "text", "text": system_prompt})
             api_kwargs["system"] = sys_blocks
-            api_kwargs["thinking"] = {"type": "enabled", "budget_tokens": 10240}
+            api_kwargs["thinking"] = {"type": "enabled", "budget_tokens": 1024}
             api_kwargs["temperature"] = 1
-            api_kwargs["max_tokens"] = max(max_tokens, 16384)
+            api_kwargs["max_tokens"] = max(max_tokens, 8192)
         elif system_prompt:
             api_kwargs["system"] = system_prompt
 

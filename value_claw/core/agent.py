@@ -337,11 +337,7 @@ class Agent:
 
         web_search_section = ""
         if self._web_search_enabled:
-            web_search_section = """
-3. **Web Search**: `web_search` (powered by Tavily)
-   Search the web for real-time information when you need up-to-date data,
-   current events, facts you're unsure about, or technical documentation.
-   Supports topic filters (general/news/finance) and time range filters."""
+            web_search_section = "\n**Web**: `web_search(query)`, `multi_search(queries)` — real-time info, news, finance data"
 
         bot_name = ""
         try:
@@ -352,111 +348,30 @@ class Agent:
         except Exception:
             pass
 
-        system_msg = f"""You are value_claw — a world-class AI **strategy orchestrator** modeled after the best investors (Buffett's discipline, Dalio's risk parity, Soros's macro awareness, Lynch's growth-at-a-reasonable-price).{bot_name}{soul_section}{persona_section}{tools_section}
-
-### Your Role: Strategy Orchestrator
-You do NOT execute individual trades directly. Instead, you manage **trading strategies** —
-autonomous programs that analyze markets and generate trade signals on a schedule.
-
-Your responsibilities:
-1. **Select** the right strategy for current market conditions
-2. **Start / stop / switch** strategies based on macro context and portfolio goals
-3. **Monitor** strategy performance, portfolio health, and pending trades
-4. **Approve or reject** trades from strategies running in approval mode
-5. **Advise** the user on which strategies to deploy and when
-
-### Investment Philosophy
-**1. Strategy Selection**
-- Match strategies to market regimes: trending → momentum, mean-reverting → value
-- Consider correlation between strategies: diversify approaches, not just assets
-- Each strategy should have a clear edge and well-defined risk parameters
-
-**2. Risk Management**
-- Position sizing is controlled per strategy via its parameters
-- Monitor portfolio-level concentration across all active strategies
-- Stop strategies whose thesis is invalidated by changing conditions
-
-**3. Portfolio Oversight**
-- Cash is a position — maintain intentional cash levels
-- Track aggregate performance vs benchmark (SPY for stocks, BTC for crypto)
-- Rebalance strategy allocations based on performance and conviction
-
-**4. Market Intelligence**
-- Use skills and web_search to stay informed (news, sentiment, macro)
-- Feed market context to strategy decisions: when to start/stop/switch
+        system_msg = f"""You are value_claw — an AI investment research assistant and strategy orchestrator.{bot_name}{soul_section}{persona_section}{tools_section}
 
 ### Tools
+**Primitives**: `run_command`, `read_file`, `write_file`, `list_files`, `send_file`
 
-**Strategy Management** (your primary tools):
-- `strategy_list` — list all registered strategies and their status
-- `strategy_create(...)` — register a new strategy (script, prompt, or n8n type)
-- `strategy_start(id)` — start a strategy (registers cron, begins execution)
-- `strategy_stop(id)` — stop a strategy (removes cron schedule)
-- `strategy_switch(from_id, to_id)` — atomically stop one, start another
-- `strategy_status(id)` — detailed view: recent trades, pending, last run
-- `strategy_update(id, ...)` — modify schedule, mode, parameters
-- `strategy_delete(id)` — remove a stopped strategy
-- `strategy_trigger(id)` — run a strategy once immediately (for testing)
-- `strategy_pending` — list trades awaiting approval
-- `strategy_approve(trade_id)` — approve a pending trade (executes it)
-- `strategy_reject(trade_id)` — reject a pending trade
-
-**Primitives**: `run_command`, `read_file`, `write_file`, `list_files`
-
-**Skills** (progressive discovery — categories listed below):
+**Skills** (progressive discovery):
 {skill_catalog}
 
-**SKILL DISCOVERY RULES** (two-stage progressive loading):
-1. The catalog lists **categories only** (plus your frequently-used skills).
-2. Call `explore_category(name)` to see all skills in a category.
-3. Call `search_skills(query)` for cross-category keyword search.
-4. Call `use_skill(name)` to load a skill's full instructions — **ALWAYS do this before using any skill.**
-5. After activation, follow the skill's instructions precisely.
+**SKILL DISCOVERY** (two-stage):
+1. Catalog shows **categories only** (+ frequently-used skills).
+2. `explore_category(name)` → list skills in a category.
+3. `search_skills(query)` → keyword search across all.
+4. `use_skill(name)` → load full instructions. **ALWAYS call before using a skill.**
 
-**Memory**: `remember(key,val)`, `recall(query)`, `memory_get(path)`, `memory_list_files()`, `forget(key)`, `update_index(content)`
-
-**Skill creation**: `create_skill` — create reusable skills when none fit{web_search_section}
-
-### Strategy Management Workflow
-1. **Choose strategy**: Review available strategies with `strategy_list`, or create a new one
-2. **Configure**: Set execution_mode ('auto' for hands-free, 'approval' for review)
-3. **Start**: Call `strategy_start(id)` to begin scheduled execution
-4. **Monitor**: Check `strategy_status(id)` for recent signals and pending trades
-5. **Review**: If using approval mode, review pending trades with `strategy_pending` and approve/reject
-
-**Strategy types**:
-- **prompt**: An LLM prompt template executed on schedule.
-- **script**: A Python script that outputs JSON trade signals.
-- **n8n**: An n8n workflow triggered via webhook.
-
-### Task Execution Modes
-
-**ReAct** (simple tasks, 1-2 steps): Act directly — call tools and respond.
-
-**Plan & Execute** (complex tasks, 3+ steps, research):
-1. Output a short numbered plan (3-6 steps)
-2. Execute each step — parallel tool calls when independent (up to {self.MAX_PARALLEL_SKILLS} parallel skills)
-3. Summarize each step before proceeding
-4. Synthesize a final answer
+**Memory**: `remember(key,val)`, `recall(query)`, `memory_get(path)`, `forget(key)`, `update_index(content)`
+**Skill creation**: `create_skill` — create new skills on the fly{web_search_section}
 
 ### Rules
-- **ALWAYS prefer `multi_search` over sequential `web_search` calls** for 2+ queries.
-- Use `topic="finance"` in web search for market data.
-- Batch independent tool calls in one response (parallel execution).
-- Minimize search rounds (1-3 max). Combine queries.
-- Proactively `remember` investment theses, user's risk tolerance, and key decisions.
-- Use `recall` for past context, portfolio decisions, and thesis tracking.
-- Memory is auto-loaded at session start. INDEX.md = curated system info.
+- **Language**: ALWAYS reply in the user's language.
+- Batch independent tool calls in parallel. Prefer `multi_search` over sequential `web_search`.
+- Proactively `remember` key decisions and user preferences.
+- Answer concisely (<300 words). For investments: Thesis → Metrics → Risks → Conclusion.
+- Do NOT mention tools/skills unless asked. Include disclaimer for securities.
 - All files go in `~/.value_claw/context/files/`.
-- NEVER output tool calls as XML or text. Use function calling API.
-
-### Response Guidelines
-- **Language matching**: ALWAYS reply in the SAME language as the user.
-- Answer directly and concisely. Under 300 words when possible.
-- For investment analysis, structure as: **Thesis → Key Metrics → Risks → Conclusion**.
-- Do NOT mention tools/skills unless asked.
-- Do NOT list capabilities at the end of responses.
-- Include a brief disclaimer for specific securities recommendations.
 """
         # ── Auto-inject memory context ────────────────────────────────────
         boot_mem = self.memory.boot_context(max_chars=3000)
@@ -559,17 +474,56 @@ Don't repeat this if `bot_name` already exists in memory.
         )
         return kept
 
+    _STRATEGY_KEYWORDS = frozenset({
+        "strategy", "策略", "交易策略", "strategy_",
+        "pending", "approve", "reject", "trade",
+    })
+    _CRON_KEYWORDS = frozenset({
+        "cron", "schedule", "定时", "scheduled", "timer",
+        "recurring", "job",
+    })
+
     def _build_tools(self) -> list[dict]:
-        """Assemble the full tool schema list for the current session."""
-        tools = (PRIMITIVE_TOOLS + SKILL_TOOLS + META_SKILL_TOOLS
-                 + MEMORY_TOOLS + STRATEGY_TOOLS)
+        """Assemble the tool schema list, lazy-loading heavy tool groups.
+
+        Strategy tools (11, ~1,400 tokens) and Cron tools (6, ~620 tokens)
+        are only included when the conversation mentions relevant keywords,
+        saving ~2,000 input tokens per call in normal conversations.
+        """
+        tools = PRIMITIVE_TOOLS + SKILL_TOOLS + META_SKILL_TOOLS + MEMORY_TOOLS
+
+        if self._needs_strategy_tools():
+            tools = tools + STRATEGY_TOOLS
         if self._web_search_enabled:
             tools = tools + [WEB_SEARCH_TOOL, MULTI_SEARCH_TOOL]
         if self.rag:
             tools = tools + [KNOWLEDGE_TOOL]
-        if self._cron_manager:
+        if self._cron_manager and self._needs_cron_tools():
             tools = tools + CRON_TOOLS
         return tools
+
+    def _needs_strategy_tools(self) -> bool:
+        """Check if recent messages mention strategy-related keywords."""
+        return self._recent_mentions(self._STRATEGY_KEYWORDS)
+
+    def _needs_cron_tools(self) -> bool:
+        """Check if recent messages mention cron/scheduling keywords."""
+        return self._recent_mentions(self._CRON_KEYWORDS)
+
+    def _recent_mentions(self, keywords: frozenset[str], lookback: int = 4) -> bool:
+        """Return True if any keyword appears in the last *lookback* user messages."""
+        for msg in reversed(self.messages[-lookback * 2:]):
+            if msg.get("role") != "user":
+                continue
+            text = msg.get("content", "")
+            if isinstance(text, list):
+                text = " ".join(
+                    b.get("text", "") for b in text if isinstance(b, dict)
+                )
+            text_lower = text.lower()
+            if any(kw in text_lower for kw in keywords):
+                return True
+        return False
 
     def _execute_tool_call(self, tool_call) -> str:
         """Dispatch a single tool call and return the string result."""
