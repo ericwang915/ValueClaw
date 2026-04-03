@@ -330,10 +330,10 @@ class AnthropicProvider(LLMProvider):
         is active.  Also strips extra keys (``_ts``, etc.) that
         Pydantic validation would reject.
 
-        Empty text blocks are replaced with a single space — the API
-        returns 400 if any text block has an empty string.
+        Empty or whitespace-only text blocks are replaced with a dot — the
+        API returns 400 if any text block lacks non-whitespace characters.
         """
-        _PLACEHOLDER = " "
+        _PLACEHOLDER = "."
         out = []
         for msg in messages:
             content = msg.get("content")
