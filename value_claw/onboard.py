@@ -2,7 +2,8 @@
 Interactive onboarding wizard for value_claw.
 
 Guides a new user through LLM provider selection, API key entry,
-and optional service key configuration.  Writes value_claw.json.
+fallback configuration, search services, channels, and skill tokens.
+Writes value_claw.json.
 """
 
 from __future__ import annotations
@@ -26,6 +27,20 @@ _RESET = "\033[0m"
 
 def _c(text: str, color: str) -> str:
     return f"{color}{text}{_RESET}"
+
+
+def _heading(text: str) -> None:
+    print()
+    print(_c(f"  ── {text} ──", _CYAN))
+    print()
+
+
+def _yes_no(prompt: str, default: bool = False) -> bool:
+    hint = "[Y/n]" if default else "[y/N]"
+    ans = input(f"  {prompt} {hint}: ").strip().lower()
+    if not ans:
+        return default
+    return ans in ("y", "yes")
 
 
 # ── Provider definitions ─────────────────────────────────────────────────────
@@ -75,6 +90,8 @@ PROVIDERS = [
     },
 ]
 
+_PROVIDER_BY_KEY = {p["key"]: p for p in PROVIDERS}
+
 
 # ── Core logic ───────────────────────────────────────────────────────────────
 
@@ -86,16 +103,12 @@ def run_onboard(config_path: str | None = None) -> Path:
     print(_c("  ╚══════════════════════════════════════╝", _CYAN))
     print()
 
-    # Load existing config if present
     cfg = _load_existing(config_path)
 
-    # 1. Choose LLM provider
-    provider = _choose_provider(cfg)
-
-    # 2. Enter API key
+    # 1. Primary LLM
+    provider = _choose_provider(cfg, "Choose your PRIMARY LLM provider:")
     api_key = _get_api_key(provider, cfg)
 
-    # 3. Update config
     prov = provider["key"]
     cfg.setdefault("llm", {})
     cfg["llm"]["provider"] = prov
@@ -105,24 +118,33 @@ def run_onboard(config_path: str | None = None) -> Path:
     if provider["default_base"]:
         cfg["llm"][prov].setdefault("baseUrl", provider["default_base"])
 
-    # 4. Optional keys
-    _optional_keys(cfg)
+    # 2. Fallback LLM
+    _configure_fallback(cfg, provider)
 
-    # 5. Validate
+    # 3. Search services
+    _search_services(cfg)
+
+    # 4. Channels
+    _channel_keys(cfg)
+
+    # 5. Skill tokens
+    _skill_tokens(cfg)
+
+    # 6. Validate primary
     _validate_key(cfg, provider)
 
-    # 6. Save
+    # 7. Save
     out_path = _save_config(cfg, config_path)
 
     print()
     print(_c("  ✔ Setup complete!", _GREEN))
     print(f"    Config saved to: {_c(str(out_path), _BOLD)}")
+    print(f"    97 skills across 17 categories ready to use.")
     print()
     return out_path
 
 
 def _load_existing(config_path: str | None) -> dict:
-    """Load existing config or return empty dict."""
     try:
         config.load(config_path)
         return config.as_dict()
@@ -130,9 +152,11 @@ def _load_existing(config_path: str | None) -> dict:
         return {}
 
 
-def _choose_provider(cfg: dict) -> dict:
+# ── Provider selection ────────────────────────────────────────────────────────
+
+def _choose_provider(cfg: dict, title: str) -> dict:
     current = cfg.get("llm", {}).get("provider", "")
-    print(_c("  Choose your LLM provider:", _BOLD))
+    print(_c(f"  {title}", _BOLD))
     print()
     for i, p in enumerate(PROVIDERS, 1):
         marker = _c(" (current)", _DIM) if p["key"] == current else ""
@@ -201,117 +225,183 @@ def _get_api_key(provider: dict, cfg: dict) -> str:
     return key
 
 
-def _optional_keys(cfg: dict) -> None:
-    print(_c("  Optional services (press Enter to skip):", _DIM))
+# ── Fallback LLM ──────────────────────────────────────────────────────────────
+
+def _configure_fallback(cfg: dict, primary: dict) -> None:
+    _heading("Fallback LLM (Optional)")
+    print(_c("    When the primary LLM fails (rate limit, quota, errors),", _DIM))
+    print(_c("    ValueClaw can automatically switch to a fallback provider.", _DIM))
     print()
 
-    # Tavily
-    tavily_existing = cfg.get("tavily", {}).get("apiKey", "")
-    if not tavily_existing:
-        tavily = input("  Tavily API Key (web search): ").strip()
-        if tavily:
-            cfg.setdefault("tavily", {})["apiKey"] = tavily
-            print("  → Tavily key set")
+    current_fallback = cfg.get("llm", {}).get("fallback", "")
+    if current_fallback:
+        print(f"    Current fallback: {_c(current_fallback, _GREEN)}")
 
-    # Deepgram
-    dg_existing = cfg.get("deepgram", {}).get("apiKey", "")
-    if not dg_existing:
-        dg = input("  Deepgram API Key (voice input): ").strip()
-        if dg:
-            cfg.setdefault("deepgram", {})["apiKey"] = dg
-            print("  → Deepgram key set")
+    if not _yes_no("Configure a fallback LLM?", default=bool(current_fallback)):
+        cfg.setdefault("llm", {})["fallback"] = ""
+        return
 
+    others = [p for p in PROVIDERS if p["key"] != primary["key"]]
     print()
-    _channel_keys(cfg)
+    for i, p in enumerate(others, 1):
+        marker = _c(" (current)", _DIM) if p["key"] == current_fallback else ""
+        print(f"    {_c(str(i), _CYAN)}. {p['name']}{marker}")
+    print()
 
+    while True:
+        choice = input(f"  Fallback provider (1-{len(others)}, Enter to skip): ").strip()
+        if not choice:
+            if current_fallback:
+                cfg["llm"]["fallback"] = current_fallback
+                print(f"  → Keeping {current_fallback}")
+            return
+        try:
+            n = int(choice)
+            if 1 <= n <= len(others):
+                fb = others[n - 1]
+                break
+        except ValueError:
+            pass
+        print(_c("  Invalid choice, try again.", _RED))
+
+    cfg["llm"]["fallback"] = fb["key"]
+    print(f"  → Fallback: {_c(fb['name'], _GREEN)}")
+
+    fb_existing = cfg.get("llm", {}).get(fb["key"], {}).get("apiKey", "")
+    if not fb_existing:
+        fb_key = _get_api_key(fb, cfg)
+        cfg["llm"].setdefault(fb["key"], {})
+        cfg["llm"][fb["key"]]["apiKey"] = fb_key
+        cfg["llm"][fb["key"]].setdefault("model", fb["default_model"])
+        if fb["default_base"]:
+            cfg["llm"][fb["key"]].setdefault("baseUrl", fb["default_base"])
+    else:
+        masked = fb_existing[:4] + "****" + fb_existing[-4:] if len(fb_existing) > 8 else "****"
+        print(f"  → Fallback key already configured ({masked})")
+    print()
+
+
+# ── Search services ───────────────────────────────────────────────────────────
+
+def _search_services(cfg: dict) -> None:
+    _heading("Search Services (Optional)")
+
+    _prompt_optional_key(cfg, ["tavily", "apiKey"],
+                         "Tavily API Key", "(financial web search with topic filters)")
+    _prompt_optional_key(cfg, ["brave", "apiKey"],
+                         "Brave Search API Key", "(unbiased web search)")
+    _prompt_optional_key(cfg, ["perplexity", "apiKey"],
+                         "Perplexity API Key", "(sonar-pro deep research)")
+    _prompt_optional_key(cfg, ["deepgram", "apiKey"],
+                         "Deepgram API Key", "(voice input)")
+
+
+# ── Channels ──────────────────────────────────────────────────────────────────
 
 def _channel_keys(cfg: dict) -> None:
-    print(_c("  Channels (press Enter to skip):", _DIM))
-    print()
+    _heading("Channels")
 
     channels = cfg.setdefault("channels", {})
 
     # Telegram
-    tg = channels.setdefault("telegram", {"token": "", "allowedUsers": []})
-    tg_existing = tg.get("token", "")
-    if tg_existing:
-        masked = tg_existing[:6] + "****" + tg_existing[-4:] if len(tg_existing) > 10 else "****"
-        print(f"  Telegram Bot Token (current: {masked}, press Enter to keep)")
-    token = input("  Telegram Bot Token: ").strip()
-    if token:
-        tg["token"] = token
-        print("  → Telegram token set")
-    elif tg_existing:
-        print("  → Keeping existing Telegram token")
+    tg = channels.setdefault("telegram", {"token": "", "allowedUsers": [], "allowedGroups": []})
+    _prompt_optional_key(cfg, ["channels", "telegram", "token"],
+                         "Telegram Bot Token", "(from @BotFather)")
+    if tg.get("token"):
+        allowed = input("  Telegram Allowed User IDs (comma-separated, Enter = all): ").strip()
+        if allowed:
+            tg["allowedUsers"] = [uid.strip() for uid in allowed.split(",") if uid.strip()]
+            print(f"  → {len(tg['allowedUsers'])} user(s) whitelisted")
 
-    allowed = input("  Telegram Allowed User IDs (comma-separated, or Enter to allow all): ").strip()
-    if allowed:
-        tg["allowedUsers"] = [uid.strip() for uid in allowed.split(",") if uid.strip()]
-        print(f"  → {len(tg['allowedUsers'])} user(s) whitelisted")
-
-    print()
+        groups = input("  Telegram Allowed Group IDs (comma-separated, Enter = none): ").strip()
+        if groups:
+            tg["allowedGroups"] = [gid.strip() for gid in groups.split(",") if gid.strip()]
+            print(f"  → {len(tg['allowedGroups'])} group(s) whitelisted")
+        print()
 
     # Discord
-    dc = channels.setdefault("discord", {"token": "", "allowedUsers": [], "allowedChannels": []})
-    dc_existing = dc.get("token", "")
-    if dc_existing:
-        masked = dc_existing[:6] + "****" + dc_existing[-4:] if len(dc_existing) > 10 else "****"
-        print(f"  Discord Bot Token (current: {masked}, press Enter to keep)")
-    dc_token = input("  Discord Bot Token: ").strip()
-    if dc_token:
-        dc["token"] = dc_token
-        print("  → Discord token set")
-    elif dc_existing:
-        print("  → Keeping existing Discord token")
+    channels.setdefault("discord", {"token": "", "allowedUsers": [], "allowedChannels": []})
+    _prompt_optional_key(cfg, ["channels", "discord", "token"],
+                         "Discord Bot Token", "")
 
-    dc_channels = input("  Discord Allowed Channel IDs (comma-separated, or Enter to allow all): ").strip()
-    if dc_channels:
-        dc["allowedChannels"] = [ch.strip() for ch in dc_channels.split(",") if ch.strip()]
-        print(f"  → {len(dc['allowedChannels'])} channel(s) whitelisted")
+    dc = channels["discord"]
+    if dc.get("token"):
+        dc_channels = input("  Discord Allowed Channel IDs (comma-separated, Enter = all): ").strip()
+        if dc_channels:
+            dc["allowedChannels"] = [ch.strip() for ch in dc_channels.split(",") if ch.strip()]
+            print(f"  → {len(dc['allowedChannels'])} channel(s) whitelisted")
+        print()
 
+
+# ── Skill tokens ──────────────────────────────────────────────────────────────
+
+def _skill_tokens(cfg: dict) -> None:
+    _heading("Skill Tokens (Optional)")
+    print(_c("    These enable specific skills. Press Enter to skip any.", _DIM))
     print()
 
-    # WhatsApp
-    wa = channels.setdefault("whatsapp", {
-        "phoneNumberId": "", "token": "", "verifyToken": "value_claw_verify",
-        "callbackUrl": "", "allowedNumbers": [],
+    skills = cfg.setdefault("skills", {})
+
+    # Twitter
+    tw = skills.setdefault("twitter", {})
+    tw_existing = tw.get("bearerToken", "")
+    if not tw_existing:
+        if _yes_no("Configure Twitter API keys? (for twitter-post & twitter-news)", default=False):
+            tw["bearerToken"] = input("    Bearer Token: ").strip()
+            tw["apiKey"] = input("    API Key: ").strip()
+            tw["apiSecret"] = getpass.getpass("    API Secret: ").strip()
+            tw["accessToken"] = input("    Access Token: ").strip()
+            tw["accessTokenSecret"] = getpass.getpass("    Access Token Secret: ").strip()
+            if tw["bearerToken"]:
+                print(_c("  → Twitter keys configured", _GREEN))
+            print()
+    else:
+        masked = tw_existing[:6] + "****" if len(tw_existing) > 10 else "****"
+        print(f"  Twitter: already configured ({masked})")
+
+    # Tushare
+    _prompt_optional_key(cfg, ["skills", "tushare", "token"],
+                         "Tushare Token", "(China A-share data)")
+
+    # n8n
+    _prompt_optional_key(cfg, ["skills", "n8n", "apiKey"],
+                         "n8n API Key", "(workflow automation)")
+
+    # Interactive Brokers
+    ib = skills.setdefault("interactiveBrokers", {
+        "host": "127.0.0.1", "port": 7497, "clientId": 1, "paperTrading": True,
     })
-    wa_existing_phone = wa.get("phoneNumberId", "")
-    wa_existing_token = wa.get("token", "")
-    if wa_existing_phone:
-        print(f"  WhatsApp Phone Number ID (current: {wa_existing_phone}, press Enter to keep)")
-    wa_phone = input("  WhatsApp Phone Number ID: ").strip()
-    if wa_phone:
-        wa["phoneNumberId"] = wa_phone
-        print("  → WhatsApp Phone Number ID set")
-    elif wa_existing_phone:
-        print("  → Keeping existing WhatsApp Phone Number ID")
+    ib_existing = ib.get("host", "")
+    if ib_existing and ib_existing != "127.0.0.1":
+        print(f"  Interactive Brokers: configured ({ib_existing}:{ib.get('port', 7497)})")
 
-    if wa_existing_token:
-        masked = wa_existing_token[:6] + "****" if len(wa_existing_token) > 10 else "****"
-        print(f"  WhatsApp Access Token (current: {masked}, press Enter to keep)")
-    wa_token = input("  WhatsApp Access Token: ").strip()
-    if wa_token:
-        wa["token"] = wa_token
-        print("  → WhatsApp token set")
-    elif wa_existing_token:
-        print("  → Keeping existing WhatsApp token")
 
-    wa_verify = input("  WhatsApp Verify Token (default: value_claw_verify): ").strip()
-    if wa_verify:
-        wa["verifyToken"] = wa_verify
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-    wa_callback = input("  WhatsApp Callback URL (e.g. https://your-domain/whatsapp/webhook): ").strip()
-    if wa_callback:
-        wa["callbackUrl"] = wa_callback
+def _prompt_optional_key(cfg: dict, path: list[str], label: str, desc: str) -> None:
+    """Prompt for an optional key at a nested config path."""
+    node = cfg
+    for k in path[:-1]:
+        node = node.setdefault(k, {})
+    key_name = path[-1]
+    existing = node.get(key_name, "")
+    has_existing = bool(existing) and existing != ""
 
-    wa_allowed = input("  WhatsApp Allowed Numbers (comma-separated, or Enter to allow all): ").strip()
-    if wa_allowed:
-        wa["allowedNumbers"] = [n.strip() for n in wa_allowed.split(",") if n.strip()]
-        print(f"  → {len(wa['allowedNumbers'])} number(s) whitelisted")
+    if has_existing:
+        masked = existing[:4] + "****" + existing[-4:] if len(existing) > 8 else "****"
+        prompt = f"  {label} {desc} (current: {masked}, Enter to keep): "
+    else:
+        prompt = f"  {label} {desc}: "
 
-    print()
+    val = input(prompt).strip()
+    if val:
+        node[key_name] = val
+        print(f"  → {label} set")
+    elif has_existing:
+        pass  # keep existing
 
+
+# ── Validation ────────────────────────────────────────────────────────────────
 
 def _validate_key(cfg: dict, provider: dict) -> None:
     """Make a quick test call to validate the API key."""
@@ -354,6 +444,8 @@ def _validate_key(cfg: dict, provider: dict) -> None:
         print(_c("  You can fix this later in value_claw.json or the web dashboard.", _DIM))
 
 
+# ── Save ──────────────────────────────────────────────────────────────────────
+
 def _save_config(cfg: dict, config_path: str | None) -> Path:
     """Write config to disk (defaults to ~/.value_claw/value_claw.json)."""
     if config_path:
@@ -362,11 +454,9 @@ def _save_config(cfg: dict, config_path: str | None) -> Path:
         out = config.VALUE_CLAW_HOME / "value_claw.json"
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    # Ensure default sections exist
     cfg.setdefault("channels", {
-        "telegram": {"token": "", "allowedUsers": []},
+        "telegram": {"token": "", "allowedUsers": [], "allowedGroups": []},
         "discord": {"token": "", "allowedUsers": [], "allowedChannels": []},
-        "whatsapp": {"phoneNumberId": "", "token": "", "verifyToken": "value_claw_verify", "callbackUrl": "", "allowedNumbers": []},
     })
     cfg.setdefault("tavily", {}).setdefault("apiKey", "")
     cfg.setdefault("deepgram", {}).setdefault("apiKey", "")
@@ -377,6 +467,7 @@ def _save_config(cfg: dict, config_path: str | None) -> Path:
     cfg.setdefault("agent", {"autoCompactThreshold": 0, "verbose": True})
     cfg.setdefault("isolation", {"perGroup": False})
     cfg.setdefault("concurrency", {"maxAgents": 4})
+    cfg["llm"].setdefault("fallback", "")
 
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(cfg, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
