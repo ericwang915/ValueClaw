@@ -366,12 +366,6 @@ class Agent:
 **Scheduling**: `add_cron`, `list_crons`, `remove_cron` — schedule recurring tasks (daily reports, alerts, monitoring)
 **Skill creation**: `create_skill` — create new skills on the fly{web_search_section}
 
-### Stock Analysis Protocol
-When analyzing a stock/crypto/asset, ALWAYS run these **in parallel**:
-1. **Technical**: use relevant Invest skills (trend-monitoring, technical_analysis, stock_fundamentals, etc.)
-2. **News & Sentiment**: `multi_search` for latest news, earnings, analyst opinions, macro impact
-3. **Synthesize**: combine technicals + news into a unified view with clear actionable conclusion
-
 ### Rules
 - **Language**: ALWAYS reply in the user's language.
 - Batch independent tool calls in parallel. Prefer `multi_search` over sequential `web_search`.
@@ -379,6 +373,26 @@ When analyzing a stock/crypto/asset, ALWAYS run these **in parallel**:
 - Answer concisely (<300 words). For investments: Thesis → Metrics → News → Risks → Conclusion.
 - Do NOT mention tools/skills unless asked. Include disclaimer for securities.
 - All files go in `~/.value_claw/context/files/`.
+
+### MANDATORY: Stock/Asset Analysis Protocol
+**For thorough analysis** ("深度分析", "deep dive", "全面分析", "should I buy"):
+→ `use_skill("deep-analysis")` — runs the full adversarial pipeline (Bull/Bear debate + risk + 5-level rating)
+
+**For ANY stock/asset question**, ALWAYS call `multi_search` FIRST with these queries:
+```
+multi_search(
+  queries=["TICKER latest news today", "TICKER analyst rating upgrade downgrade", "TICKER earnings outlook risks 2026", "TICKER sector industry trends"],
+  topic="news",
+  search_depth="advanced",
+  time_range="week"
+)
+```
+Then in parallel, use relevant Equity / Multi-Asset skills for technical data.
+Synthesize news + technicals. Include `recall("TICKER")` for past analyses.
+
+**NEVER** give a stock opinion without `multi_search` news results.
+**NEVER** use `topic="general"` for stock queries — always `"news"` or `"finance"`.
+After analysis, `remember("TICKER_call_DATE", "Rating: X, Price: $Y, Thesis: ...")`.
 """
         # ── Auto-inject memory context ────────────────────────────────────
         boot_mem = self.memory.boot_context(max_chars=3000)

@@ -62,3 +62,27 @@ python3 risk_analytics.py TSLA --all-metrics
 **Beta**: Systematic risk vs benchmark
 **Correlation Analysis**: Relationship matrix between assets
 **Stress Testing**: Performance during major market events (2008, COVID, etc.)
+
+## Position Sizing & Stop-Loss (NEW)
+
+When presenting risk analysis, ALWAYS include actionable risk management advice:
+
+### Position Sizing (Kelly / Volatility-based)
+- **Volatility-Adjusted**: `Position % = Risk Budget / (ATR% × Leverage)`
+- For a typical 2% risk budget and a stock with 3% daily ATR → ~0.67 position weight
+- **Kelly Criterion** (simplified): `f = edge / odds` — for reference only, use half-Kelly in practice
+- Present as: "建议仓位: X% of portfolio (based on Y% daily volatility)"
+
+### Dynamic Stop-Loss
+- **ATR Stop**: Entry price - (2 × ATR14) for long positions
+- **Support-Based**: Nearest key support level from technical analysis
+- **Trailing Stop**: Use 2×ATR or 20-day low as trailing stop after +10% gain
+- Present both mechanical and structural stop levels
+
+### Risk/Reward Assessment
+Always calculate and display:
+```
+Risk/Reward Ratio: (Target - Entry) / (Entry - Stop)
+Expected Value: Win% × Avg_Win - Loss% × Avg_Loss
+```
+A minimum 2:1 risk/reward ratio is required for a BUY recommendation.

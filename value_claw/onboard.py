@@ -48,7 +48,7 @@ PROVIDERS = [
     {
         "key": "claude",
         "name": "Claude (Anthropic) — API key or OAuth token",
-        "default_model": "claude-sonnet-4-20250514",
+        "default_model": "claude-sonnet-4-6",
         "default_base": None,
         "env": "ANTHROPIC_API_KEY",
     },

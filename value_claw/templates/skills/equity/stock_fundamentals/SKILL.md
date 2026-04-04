@@ -67,6 +67,34 @@ python {skill_path}/fundamentals.py AAPL --earnings --format json
 - **Beat Rate**: % of quarters where EPS beat estimates
 - **Quarterly Revenue & Net Income**: Last 6 quarters trend
 
+## Balance Sheet & Cash Flow Deep Dive (Enhanced)
+
+When performing in-depth fundamental analysis, go beyond ratios — analyze the **trajectory**:
+
+### Balance Sheet Health Check
+Compare last 4 quarters to spot trends:
+- **Cash vs Debt trajectory**: Is net cash position improving or deteriorating?
+- **Current Ratio trend**: >1.5 healthy, <1.0 warning
+- **Goodwill / Total Assets**: >30% = acquisition-driven growth risk
+- **Share count change**: Dilution (bad) vs buybacks (positive signal)
+
+### Cash Flow Quality Assessment
+- **FCF Margin**: FCF / Revenue — sustainable >15% for tech, >8% for industrial
+- **OCF vs Net Income**: OCF should be ≥ Net Income; gap = earnings quality concern
+- **CapEx Intensity**: CapEx / Revenue — high = heavy reinvestment needs
+- **FCF Yield**: FCF / Market Cap — compare vs treasury yield for value signal
+
+### Financial Strength Score
+Synthesize into a single score:
+```
+Financial Strength: 8/10
+✅ Growing FCF (+18% YoY)
+✅ Net cash position ($24B cash vs $12B debt)
+✅ Share buyback ($15B trailing 12M)
+⚠️ Goodwill at 22% of assets (manageable)
+❌ Current ratio declining (1.8 → 1.4 over 4Q)
+```
+
 ## Notes
 
 - Data from Yahoo Finance — typical 15-min delay for US markets

@@ -63,6 +63,33 @@ Each analysis ends with a **Signal Summary** covering:
 - KDJ K vs D crossover
 - Golden Cross / Death Cross alerts
 
+## Advanced Indicators (Enhanced)
+
+### VWMA (Volume-Weighted Moving Average)
+- Confirms trend by weighting price with volume
+- When price > VWMA20: volume-confirmed uptrend
+- Price crossing below VWMA while above SMA: early distribution warning
+- Use: `python {skill_path}/technicals.py SYMBOL --show vwma`
+
+### ATR-Based Dynamic Stop-Loss
+After computing ATR, always suggest actionable stop levels:
+- **Long Entry Stop**: Entry - 2×ATR14 (normal volatility), Entry - 3×ATR14 (high volatility)
+- **Short Entry Stop**: Entry + 2×ATR14
+- **Trailing Stop**: Highest close - 2×ATR14 (updated daily)
+- Output: "建议止损: $XXX (基于2倍ATR=$Y, 当前价$Z)"
+
+### Indicator Selection Guide
+Not all indicators are useful in all market conditions. Select based on context:
+
+| Market Condition | Best Indicators | Avoid |
+|-----------------|----------------|-------|
+| Strong Trend | MA alignment, MACD, OBV | RSI (stays overbought), KDJ |
+| Range-Bound | RSI, Bollinger Bands, KDJ | MACD (lots of false signals) |
+| High Volatility | ATR, Bollinger Width, VWMA | Tight MA crosses (whipsaws) |
+| Breakout Watch | Volume Ratio, OBV divergence, BB squeeze | Lagging MAs |
+
+Always state which indicators are most relevant for the current market regime.
+
 ## Notes
 
 - Uses pure pandas — no `ta-lib` or `pandas-ta` needed

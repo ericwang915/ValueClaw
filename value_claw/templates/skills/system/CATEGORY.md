@@ -1,5 +1,5 @@
 ---
 name: System
-description: Agent self-management, configuration, and built-in utilities.
+description: Agent self-management — persona, settings, model usage, session logs, skill creation, and built-in utilities.
 emoji: "⚙️"
 ---

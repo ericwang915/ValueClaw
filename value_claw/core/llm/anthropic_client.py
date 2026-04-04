@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import Generator
 from typing import Any, Dict, List, Optional
 
@@ -16,6 +17,9 @@ from .base import LLMProvider
 from .response import MockChoice, MockFunction, MockMessage, MockResponse, MockToolCall
 
 logger = logging.getLogger(__name__)
+
+_MAX_RETRIES = 3
+_RETRY_BASE_DELAY = 5  # seconds
 
 
 _OAUTH_BETAS = ",".join([
@@ -40,7 +44,7 @@ class AnthropicProvider(LLMProvider):
 
     supports_images = True
 
-    def __init__(self, api_key: str, model_name: str = "claude-sonnet-4-20250514"):
+    def __init__(self, api_key: str, model_name: str = "claude-sonnet-4-6"):
         self._is_oauth = "oat" in api_key[:20]
         client_kwargs: dict[str, Any] = {"timeout": 300.0}
 
@@ -60,6 +64,7 @@ class AnthropicProvider(LLMProvider):
         self.client = anthropic.Anthropic(**client_kwargs)
         self.model_name = model_name
         self._auth_type = "oauth" if self._is_oauth else "api-key"
+        logger.info("[Anthropic] model=%s auth=%s", model_name, self._auth_type)
 
     # ── shared helpers ────────────────────────────────────────────────────
 
@@ -145,7 +150,7 @@ class AnthropicProvider(LLMProvider):
             if system_prompt:
                 sys_blocks.append({"type": "text", "text": system_prompt})
             api_kwargs["system"] = sys_blocks
-            api_kwargs["thinking"] = {"type": "enabled", "budget_tokens": 1024}
+            api_kwargs["thinking"] = {"type": "enabled", "budget_tokens": 2048}
             api_kwargs["temperature"] = 1
             api_kwargs["max_tokens"] = max(max_tokens, 8192)
         elif system_prompt:
@@ -194,7 +199,17 @@ class AnthropicProvider(LLMProvider):
         api_kwargs = self._prepare_request(
             messages, tools, tool_choice, **kwargs
         )
-        response = self.client.messages.create(**api_kwargs)
+
+        for attempt in range(_MAX_RETRIES):
+            try:
+                response = self.client.messages.create(**api_kwargs)
+                break
+            except anthropic.RateLimitError:
+                if attempt == _MAX_RETRIES - 1:
+                    raise
+                delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                logger.warning("[Anthropic] 429 rate limit, retry %d/%d in %ds", attempt + 1, _MAX_RETRIES, delay)
+                time.sleep(delay)
 
         content_text = ""
         tool_calls: list[MockToolCall] = []
@@ -231,7 +246,22 @@ class AnthropicProvider(LLMProvider):
         tool_calls: list[MockToolCall] = []
         current_tool: dict[str, Any] | None = None
 
-        with self.client.messages.stream(**api_kwargs) as stream:
+        last_err: Exception | None = None
+        for attempt in range(_MAX_RETRIES):
+            try:
+                stream_ctx = self.client.messages.stream(**api_kwargs)
+                break
+            except anthropic.RateLimitError as exc:
+                last_err = exc
+                if attempt == _MAX_RETRIES - 1:
+                    raise
+                delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                logger.warning("[Anthropic] 429 rate limit on stream, retry %d/%d in %ds", attempt + 1, _MAX_RETRIES, delay)
+                time.sleep(delay)
+        else:
+            raise last_err  # type: ignore[misc]
+
+        with stream_ctx as stream:
             for event in stream:
                 if event.type == "content_block_start":
                     block = event.content_block

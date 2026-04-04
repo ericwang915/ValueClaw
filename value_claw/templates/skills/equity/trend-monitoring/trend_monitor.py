@@ -136,7 +136,7 @@ def _query_claude(prompt_text, cfg):
     api_key = cfg.get("apiKey", "")
     if not api_key:
         return "Error: No Claude API key configured."
-    model = cfg.get("model", "claude-sonnet-4-20250514")
+    model = cfg.get("model", "claude-sonnet-4-6")
 
     try:
         import anthropic

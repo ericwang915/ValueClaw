@@ -21,93 +21,83 @@ from .core.session_store import SessionStore
 
 # ── Provider builder ─────────────────────────────────────────────────────────
 
+_PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
+    "deepseek":  {"env": "DEEPSEEK_API_KEY",  "base": "https://api.deepseek.com/v1", "model": "deepseek-chat"},
+    "grok":      {"env": "GROK_API_KEY",      "base": "https://api.x.ai/v1",         "model": "grok-3"},
+    "claude":    {"env": "ANTHROPIC_API_KEY",  "model": "claude-sonnet-4-6"},
+    "anthropic": {"env": "ANTHROPIC_API_KEY",  "model": "claude-sonnet-4-6"},
+    "gemini":    {"env": "GEMINI_API_KEY",     "model": "gemini-2.0-flash"},
+    "kimi":      {"env": "KIMI_API_KEY",       "base": "https://api.moonshot.cn/v1",  "model": "moonshot-v1-128k"},
+    "moonshot":  {"env": "KIMI_API_KEY",       "base": "https://api.moonshot.cn/v1",  "model": "moonshot-v1-128k"},
+    "glm":       {"env": "GLM_API_KEY",        "base": "https://open.bigmodel.cn/api/paas/v4/", "model": "glm-4-flash"},
+    "zhipu":     {"env": "GLM_API_KEY",        "base": "https://open.bigmodel.cn/api/paas/v4/", "model": "glm-4-flash"},
+    "chatglm":   {"env": "GLM_API_KEY",        "base": "https://open.bigmodel.cn/api/paas/v4/", "model": "glm-4-flash"},
+}
+
+_CONFIG_KEY_MAP: dict[str, str] = {
+    "anthropic": "claude", "moonshot": "kimi", "zhipu": "glm", "chatglm": "glm",
+}
+
+
+def _build_single_provider(name: str):
+    """Build a single LLM provider by canonical name."""
+    name = name.lower().strip()
+    defaults = _PROVIDER_DEFAULTS.get(name)
+    if not defaults:
+        raise ValueError(f"Unknown LLM provider: '{name}'")
+
+    cfg_key = _CONFIG_KEY_MAP.get(name, name)
+    api_key = config.get_str("llm", cfg_key, "apiKey", env=defaults["env"])
+    if not api_key:
+        raise ValueError(f"{defaults['env']} not set (env or value_claw.json llm.{cfg_key}.apiKey)")
+
+    if name in ("claude", "anthropic"):
+        from .core.llm.anthropic_client import AnthropicProvider
+        return AnthropicProvider(
+            api_key=api_key,
+            model_name=config.get_str("llm", cfg_key, "model", default=defaults["model"]),
+        )
+
+    if name == "gemini":
+        from .core.llm.gemini_client import GeminiProvider
+        return GeminiProvider(api_key=api_key)
+
+    from .core.llm.openai_compatible import OpenAICompatibleProvider
+    return OpenAICompatibleProvider(
+        api_key=api_key,
+        base_url=config.get_str("llm", cfg_key, "baseUrl", default=defaults.get("base", "")),
+        model_name=config.get_str("llm", cfg_key, "model", default=defaults["model"]),
+    )
+
+
 def _build_provider():
-    """Instantiate the LLM provider selected by config."""
-    provider_name = config.get_str(
+    """Build the LLM provider, with optional fallback from config.
+
+    Config example::
+
+        "llm": {
+            "provider": "claude",
+            "fallback": "deepseek",
+            "claude":   { "apiKey": "...", "model": "claude-sonnet-4-6" },
+            "deepseek": { "apiKey": "...", "model": "deepseek-chat" }
+        }
+    """
+    primary_name = config.get_str(
         "llm", "provider", env="LLM_PROVIDER", default="deepseek"
     ).lower()
 
-    if provider_name == "deepseek":
-        from .core.llm.openai_compatible import OpenAICompatibleProvider
-        api_key = config.get_str("llm", "deepseek", "apiKey", env="DEEPSEEK_API_KEY")
-        if not api_key:
-            raise ValueError("DEEPSEEK_API_KEY not set (env or value_claw.json)")
-        return OpenAICompatibleProvider(
-            api_key=api_key,
-            base_url=config.get_str(
-                "llm", "deepseek", "baseUrl", default="https://api.deepseek.com/v1",
-            ),
-            model_name=config.get_str(
-                "llm", "deepseek", "model", default="deepseek-chat",
-            ),
-        )
+    primary = _build_single_provider(primary_name)
 
-    if provider_name == "grok":
-        from .core.llm.openai_compatible import OpenAICompatibleProvider
-        api_key = config.get_str("llm", "grok", "apiKey", env="GROK_API_KEY")
-        if not api_key:
-            raise ValueError("GROK_API_KEY not set (env or value_claw.json)")
-        return OpenAICompatibleProvider(
-            api_key=api_key,
-            base_url=config.get_str(
-                "llm", "grok", "baseUrl", default="https://api.x.ai/v1",
-            ),
-            model_name=config.get_str(
-                "llm", "grok", "model", default="grok-3",
-            ),
-        )
+    fallback_name = config.get_str("llm", "fallback", default="")
+    if fallback_name:
+        from .core.llm.fallback import FallbackProvider
+        fallback = _build_single_provider(fallback_name)
+        p_model = getattr(primary, "model_name", primary_name)
+        f_model = getattr(fallback, "model_name", fallback_name)
+        logging.getLogger(__name__).info("[LLM] %s → %s fallback enabled", p_model, f_model)
+        return FallbackProvider(primary, fallback)
 
-    if provider_name in ("claude", "anthropic"):
-        from .core.llm.anthropic_client import AnthropicProvider
-        api_key = config.get_str("llm", "claude", "apiKey", env="ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY not set (env or value_claw.json)")
-        return AnthropicProvider(
-            api_key=api_key,
-            model_name=config.get_str(
-                "llm", "claude", "model", default="claude-sonnet-4-20250514",
-            ),
-        )
-
-    if provider_name == "gemini":
-        from .core.llm.gemini_client import GeminiProvider
-        api_key = config.get_str("llm", "gemini", "apiKey", env="GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY not set (env or value_claw.json)")
-        return GeminiProvider(api_key=api_key)
-
-    if provider_name in ("kimi", "moonshot"):
-        from .core.llm.openai_compatible import OpenAICompatibleProvider
-        api_key = config.get_str("llm", "kimi", "apiKey", env="KIMI_API_KEY")
-        if not api_key:
-            raise ValueError("KIMI_API_KEY not set (env or value_claw.json)")
-        return OpenAICompatibleProvider(
-            api_key=api_key,
-            base_url=config.get_str(
-                "llm", "kimi", "baseUrl", default="https://api.moonshot.cn/v1",
-            ),
-            model_name=config.get_str(
-                "llm", "kimi", "model", env="KIMI_MODEL", default="moonshot-v1-128k",
-            ),
-        )
-
-    if provider_name in ("glm", "zhipu", "chatglm"):
-        from .core.llm.openai_compatible import OpenAICompatibleProvider
-        api_key = config.get_str("llm", "glm", "apiKey", env="GLM_API_KEY")
-        if not api_key:
-            raise ValueError("GLM_API_KEY not set (env or value_claw.json)")
-        return OpenAICompatibleProvider(
-            api_key=api_key,
-            base_url=config.get_str(
-                "llm", "glm", "baseUrl",
-                default="https://open.bigmodel.cn/api/paas/v4/",
-            ),
-            model_name=config.get_str(
-                "llm", "glm", "model", env="GLM_MODEL", default="glm-4-flash",
-            ),
-        )
-
-    raise ValueError(f"Unknown LLM_PROVIDER: '{provider_name}'")
+    return primary
 
 
 # ── Ensure config is ready (auto-onboard if needed) ─────────────────────────

@@ -1,6 +1,7 @@
 {
   "llm": {
     "provider": "deepseek",
+    "fallback": "",
     "deepseek": {
       "apiKey": "",
       "model": "deepseek-chat",
@@ -13,7 +14,7 @@
     },
     "claude": {
       "apiKey": "",
-      "model": "claude-sonnet-4-20250514"
+      "model": "claude-sonnet-4-6"
     },
     "gemini": {
       "apiKey": "",

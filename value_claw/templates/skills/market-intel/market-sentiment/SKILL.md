@@ -51,3 +51,33 @@ python3 sentiment.py --output json
 **Composite Score**: Weighted average of all indicators with interpretation
 
 The tool provides emoji-based visual indicators and actionable insights for different market conditions.
+
+## Social Sentiment Layer (Enhanced)
+
+In addition to traditional indicators, when analyzing sentiment for a specific stock,
+ALSO search for social/news sentiment using `multi_search`:
+
+1. `"{TICKER} sentiment reddit wallstreetbets"` — retail investor mood
+2. `"{TICKER} twitter fintwit bullish bearish"` — FinTwit pulse
+3. `"{TICKER} analyst upgrade downgrade this week"` — institutional sentiment shift
+
+### Sentiment Scoring Framework
+
+After gathering data, produce a composite sentiment score:
+
+| Source | Weight | Score Range |
+|--------|--------|-------------|
+| CNN Fear & Greed | 25% | 0-100 |
+| VIX vs 20d avg | 20% | Inverse: low VIX = bullish |
+| Put/Call Ratio | 15% | <0.7 bullish, >1.0 bearish |
+| Social Media Buzz | 20% | Qualitative → 0-100 |
+| Analyst Actions | 20% | Upgrades vs downgrades |
+
+Final output should include:
+```
+Sentiment Score: 72/100 (Bullish)
+Breakdown: Fear&Greed=65, VIX=Low(bullish), P/C=0.65(bullish), Social=78, Analysts=+3 upgrades
+Contrarian Signal: ⚠️ High bullishness may indicate crowded trade
+```
+
+Always flag **contrarian signals** when sentiment is extreme (>80 or <20).

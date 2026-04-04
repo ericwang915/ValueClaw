@@ -438,7 +438,7 @@ def web_search(
     *,
     search_depth: str = "basic",
     topic: str = "general",
-    max_results: int = 3,
+    max_results: int = 5,
     time_range: str | None = None,
     include_domains: list[str] | None = None,
     exclude_domains: list[str] | None = None,
@@ -489,8 +489,8 @@ def web_search(
             title = r.get("title", "Untitled")
             url = r.get("url", "")
             content = r.get("content", "")
-            if len(content) > 300:
-                content = content[:300] + "..."
+            if len(content) > 600:
+                content = content[:600] + "..."
             parts.append(f"\n{i}. [{title}]({url})")
             if content:
                 parts.append(f"   {content}")
@@ -506,7 +506,7 @@ def multi_search(
     *,
     search_depth: str = "basic",
     topic: str = "general",
-    max_results: int = 3,
+    max_results: int = 5,
     time_range: str | None = None,
 ) -> str:
     """Execute multiple web searches in parallel and return combined results.
@@ -544,8 +544,8 @@ def multi_search(
                 title = r.get("title", "Untitled")
                 url = r.get("url", "")
                 content = r.get("content", "")
-                if len(content) > 300:
-                    content = content[:300] + "..."
+                if len(content) > 600:
+                    content = content[:600] + "..."
                 parts.append(f"{i}. [{title}]({url})\n   {content}")
             return q, "\n".join(parts) if parts else "No results."
         except Exception as exc:
@@ -618,36 +618,36 @@ MULTI_SEARCH_TOOL: dict = _fn(
     (
         "Execute multiple web searches IN PARALLEL and return combined results. "
         "Much faster than calling web_search multiple times sequentially. "
-        "Use this whenever you need to research 2+ different queries, compare "
-        "multiple topics, or gather information from different angles at once."
+        "ALWAYS use topic='news' for stock/financial queries, topic='finance' for market data. "
+        "For stock analysis, use 3-4 queries covering: latest news, analyst ratings, earnings, risks."
     ),
     {
         "queries": {
             "type": "array",
             "items": {"type": "string"},
-            "description": "List of search queries to execute in parallel (2-6 queries recommended).",
+            "description": "List of search queries to execute in parallel (3-5 queries recommended).",
         },
         "search_depth": {
             "type": "string",
             "enum": ["basic", "advanced"],
-            "description": "Search depth for all queries.",
+            "description": "Search depth: 'basic' (fast) or 'advanced' (more thorough, use for stock analysis).",
             "default": "basic",
         },
         "topic": {
             "type": "string",
             "enum": ["general", "news", "finance"],
-            "description": "Search category for all queries.",
-            "default": "general",
+            "description": "IMPORTANT: use 'news' for stock/company/market news, 'finance' for financial data, 'general' only for non-financial topics.",
+            "default": "news",
         },
         "max_results": {
             "type": "integer",
-            "description": "Results per query (1-5).",
-            "default": 3,
+            "description": "Results per query (1-10).",
+            "default": 5,
         },
         "time_range": {
             "type": "string",
             "enum": ["day", "week", "month", "year"],
-            "description": "Filter results by recency. Omit for no time filter.",
+            "description": "Time filter. Use 'week' for stock analysis to get recent news.",
         },
     },
     ["queries"],
