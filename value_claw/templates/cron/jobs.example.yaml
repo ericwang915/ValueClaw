@@ -1,0 +1,67 @@
+# ValueClaw Cron Jobs — Example Configuration
+# ─────────────────────────────────────────────────────────────────────────
+# Copy this file to ~/.value_claw/context/cron/jobs.yaml and customize.
+#
+# Schedule format: 5-field cron expression (min hour day month weekday)
+#   min(0-59) hour(0-23) day(1-31) month(1-12) weekday(0-6, 0=Sun)
+#
+# deliver_to: "telegram" sends the result to the chat_id via Telegram bot
+# enabled: set to false to skip a job without removing it
+#
+# You can also create jobs dynamically via the bot:
+#   "每天早上9点分析TSLA"  or  "Schedule a daily market briefing at 9am"
+# ─────────────────────────────────────────────────────────────────────────
+
+jobs:
+  # ── Market Briefings ────────────────────────────────────────────────────
+
+  - id: morning-briefing
+    enabled: true
+    cron: "30 9 * * 1-5"          # Mon-Fri 9:30 AM (adjust to your timezone)
+    prompt: >
+      Generate a concise morning market briefing:
+      1. Use multi_search to find today's top market news
+      2. Check major indices pre-market moves
+      3. Highlight key earnings reports today
+      4. Note any major economic data releases scheduled
+      Format as a clean briefing. Keep it under 800 words.
+    deliver_to: telegram
+    chat_id: YOUR_TELEGRAM_CHAT_ID
+
+  - id: evening-recap
+    enabled: true
+    cron: "5 16 * * 1-5"          # Mon-Fri 4:05 PM (after US market close)
+    prompt: >
+      Generate an evening market recap:
+      1. Summarize today's S&P 500, NASDAQ, Dow Jones closing moves
+      2. Top gainers/losers from watchlist
+      3. Any notable after-hours earnings
+      4. Key events to watch tomorrow
+      Format as a clean recap. Keep it under 600 words.
+    deliver_to: telegram
+    chat_id: YOUR_TELEGRAM_CHAT_ID
+
+  # ── Weekly Reports ──────────────────────────────────────────────────────
+
+  - id: weekly-earnings-preview
+    enabled: true
+    cron: "0 20 * * 0"            # Sunday 8:00 PM
+    prompt: >
+      Generate a weekly earnings preview for the upcoming week.
+      Use multi_search to find the earnings calendar.
+      List major companies reporting with dates and consensus estimates.
+    deliver_to: telegram
+    chat_id: YOUR_TELEGRAM_CHAT_ID
+
+  # ── Watchlist Monitoring ────────────────────────────────────────────────
+
+  - id: watchlist-scan
+    enabled: true
+    cron: "0 12 * * 1-5"          # Mon-Fri 12:00 PM (midday check)
+    prompt: >
+      Quick technical scan on: TSLA, AAPL, NVDA.
+      For each: price, % change, RSI, notable levels.
+      Flag stocks with >3% moves or extreme RSI.
+      Use the technical_analysis skill.
+    deliver_to: telegram
+    chat_id: YOUR_TELEGRAM_CHAT_ID

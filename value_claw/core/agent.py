@@ -378,19 +378,30 @@ class Agent:
 **For thorough analysis** ("深度分析", "deep dive", "全面分析", "should I buy"):
 → `use_skill("deep-analysis")` — runs the full adversarial pipeline (Bull/Bear debate + risk + 5-level rating)
 
-**For ANY stock/asset question**, ALWAYS call `multi_search` FIRST with these queries:
+**For ANY stock/asset question**, ALWAYS run these 3 searches in ONE `multi_search` call:
 ```
 multi_search(
-  queries=["TICKER latest news today", "TICKER analyst rating upgrade downgrade", "TICKER earnings outlook risks 2026", "TICKER sector industry trends"],
+  queries=[
+    "TICKER latest news today",
+    "TICKER analyst rating upgrade downgrade earnings 2026",
+    "US stock market macro economy Fed interest rate tariff today",
+    "TICKER sector industry trends outlook"
+  ],
   topic="news",
   search_depth="advanced",
   time_range="week"
 )
 ```
-Then in parallel, use relevant Equity / Multi-Asset skills for technical data.
-Synthesize news + technicals. Include `recall("TICKER")` for past analyses.
+Then IN PARALLEL, use relevant Equity / Multi-Asset skills for technical data.
 
-**NEVER** give a stock opinion without `multi_search` news results.
+**Synthesis must cover ALL 3 dimensions**:
+1. **Macro environment** — Fed policy, rates, geopolitics, tariffs, recession risk, market sentiment
+2. **Asset-specific news** — earnings, analyst ratings, guidance, sector trends
+3. **Technical signals** — price action, RSI, support/resistance, volume
+
+Include `recall("TICKER")` for past analyses.
+
+**NEVER** give a stock opinion without covering macro + news + technicals.
 **NEVER** use `topic="general"` for stock queries — always `"news"` or `"finance"`.
 After analysis, `remember("TICKER_call_DATE", "Rating: X, Price: $Y, Thesis: ...")`.
 """
@@ -626,6 +637,7 @@ Don't repeat this if `bot_name` already exists in memory.
                 else:
                     result = "No relevant information found in the knowledge base."
             elif func_name == "cron_add" and self._cron_manager:
+                logger.info("[Agent] cron_add: id=%s cron=%s", args.get("job_id"), args.get("cron"))
                 result = self._cron_manager.add_dynamic_job(
                     job_id=args.get("job_id"),
                     cron_expr=args.get("cron"),
@@ -668,6 +680,8 @@ Don't repeat this if `bot_name` already exists in memory.
                     result += f"\n\nPrefect UI: {self._cron_manager.prefect_ui_url}"
                 else:
                     result = f"No runs found for '{args.get('job_id')}'."
+            elif func_name.startswith("cron_") and not self._cron_manager:
+                result = "Error: Scheduler not available. Start with `value_claw start` to enable cron jobs."
             elif func_name == "strategy_start":
                 result = self._strategy_start(args.get("strategy_id", ""))
             elif func_name == "strategy_stop":

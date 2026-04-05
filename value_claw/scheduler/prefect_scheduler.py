@@ -85,6 +85,23 @@ def _default_jobs_path() -> str:
     return os.path.join(_cron_dir(), "jobs.yaml")
 
 
+def _bootstrap_jobs_yaml() -> None:
+    """Copy the example jobs.yaml template if no jobs file exists yet."""
+    target = _default_jobs_path()
+    if os.path.exists(target):
+        return
+    template = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "templates", "cron", "jobs.example.yaml",
+    )
+    if not os.path.exists(template):
+        return
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    import shutil
+    shutil.copy2(template, target)
+    logger.info("[PrefectScheduler] Bootstrapped default jobs.yaml from template")
+
+
 def _parse_cron(expr: str) -> CronTrigger:
     """Convert a 5-field cron expression into an APScheduler CronTrigger."""
     parts = expr.strip().split()
@@ -316,6 +333,7 @@ class PrefectScheduler:
         self._start_prefect_server()
         self._configure_prefect()
 
+        _bootstrap_jobs_yaml()
         static_count = self.load_and_register_jobs()
         dynamic_count = self._register_dynamic_jobs()
         strategy_count = self._restore_strategy_jobs()

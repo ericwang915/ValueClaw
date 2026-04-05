@@ -27,13 +27,16 @@ Run these tool calls **in parallel**:
 
 1. `use_skill("stock_fundamentals")` → then run fundamentals report
 2. `use_skill("technical_analysis")` → then run technical report
-3. `multi_search` with queries:
-   - `"{TICKER} latest news {today}"` 
-   - `"{TICKER} analyst rating upgrade downgrade {this_month}"`
-   - `"{TICKER} earnings outlook risks"`
+3. `multi_search` with queries (ALL required):
+   - `"{TICKER} latest news today"`
+   - `"{TICKER} analyst rating upgrade downgrade"`
+   - `"US stock market macro economy Fed interest rate tariff today"` ← **macro context**
+   - `"{TICKER} sector industry trends outlook"`
 4. `use_skill("market-sentiment")` → run sentiment dashboard (if relevant)
 
-Collect all 4 reports before proceeding.
+Collect all 4 reports before proceeding. The **macro query is NOT optional** — every asset
+exists within a macro environment (rates, geopolitics, tariffs, recession risk) that drives
+market-wide sentiment and can override individual fundamentals.
 
 ### Step 2 — Bull Case (看多论点)
 
@@ -50,7 +53,8 @@ Output this section with header `## 🐂 Bull Case`.
 Now write a **Bear Analyst** rebuttal:
 
 > You are a Bear Analyst. Build a compelling case AGAINST investing.
-> Focus on: valuation risks, competitive threats, macro headwinds, negative signals.
+> Focus on: valuation risks, competitive threats, macro headwinds (rates, tariffs, recession),
+> negative signals, and sector-wide risks.
 > Directly counter the Bull Case's strongest arguments with data.
 
 Output this section with header `## 🐻 Bear Case`.
@@ -72,7 +76,7 @@ Include concrete risk metrics:
 
 ### Step 5 — Final Verdict (最终裁决)
 
-Synthesize everything into a definitive rating:
+Synthesize everything — **macro environment + asset news + fundamentals + technicals** — into a definitive rating:
 
 | Rating | Meaning |
 |--------|---------|
