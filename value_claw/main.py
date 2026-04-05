@@ -22,16 +22,17 @@ from .core.session_store import SessionStore
 # ── Provider builder ─────────────────────────────────────────────────────────
 
 _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
-    "deepseek":  {"env": "DEEPSEEK_API_KEY",  "base": "https://api.deepseek.com/v1", "model": "deepseek-chat"},
-    "grok":      {"env": "GROK_API_KEY",      "base": "https://api.x.ai/v1",         "model": "grok-3"},
-    "claude":    {"env": "ANTHROPIC_API_KEY",  "model": "claude-sonnet-4-6"},
-    "anthropic": {"env": "ANTHROPIC_API_KEY",  "model": "claude-sonnet-4-6"},
-    "gemini":    {"env": "GEMINI_API_KEY",     "model": "gemini-2.0-flash"},
-    "kimi":      {"env": "KIMI_API_KEY",       "base": "https://api.moonshot.cn/v1",  "model": "moonshot-v1-128k"},
-    "moonshot":  {"env": "KIMI_API_KEY",       "base": "https://api.moonshot.cn/v1",  "model": "moonshot-v1-128k"},
-    "glm":       {"env": "GLM_API_KEY",        "base": "https://open.bigmodel.cn/api/paas/v4/", "model": "glm-4-flash"},
-    "zhipu":     {"env": "GLM_API_KEY",        "base": "https://open.bigmodel.cn/api/paas/v4/", "model": "glm-4-flash"},
-    "chatglm":   {"env": "GLM_API_KEY",        "base": "https://open.bigmodel.cn/api/paas/v4/", "model": "glm-4-flash"},
+    "deepseek":    {"env": "DEEPSEEK_API_KEY",  "base": "https://api.deepseek.com/v1", "model": "deepseek-chat"},
+    "grok":        {"env": "GROK_API_KEY",      "base": "https://api.x.ai/v1",         "model": "grok-3"},
+    "claude":      {"env": "ANTHROPIC_API_KEY",  "model": "claude-sonnet-4-6"},
+    "anthropic":   {"env": "ANTHROPIC_API_KEY",  "model": "claude-sonnet-4-6"},
+    "gemini":      {"env": "GEMINI_API_KEY",     "model": "gemini-2.5-flash"},
+    "gemini-cli":  {"env": "_GEMINI_CLI_",       "model": "gemini-3.1-pro"},
+    "kimi":        {"env": "KIMI_API_KEY",       "base": "https://api.moonshot.cn/v1",  "model": "moonshot-v1-128k"},
+    "moonshot":    {"env": "KIMI_API_KEY",       "base": "https://api.moonshot.cn/v1",  "model": "moonshot-v1-128k"},
+    "glm":         {"env": "GLM_API_KEY",        "base": "https://open.bigmodel.cn/api/paas/v4/", "model": "glm-4-flash"},
+    "zhipu":       {"env": "GLM_API_KEY",        "base": "https://open.bigmodel.cn/api/paas/v4/", "model": "glm-4-flash"},
+    "chatglm":     {"env": "GLM_API_KEY",        "base": "https://open.bigmodel.cn/api/paas/v4/", "model": "glm-4-flash"},
 }
 
 _CONFIG_KEY_MAP: dict[str, str] = {
@@ -45,6 +46,12 @@ def _build_single_provider(name: str):
     defaults = _PROVIDER_DEFAULTS.get(name)
     if not defaults:
         raise ValueError(f"Unknown LLM provider: '{name}'")
+
+    # Gemini CLI OAuth — no API key needed, reads ~/.gemini/oauth_creds.json
+    if name == "gemini-cli":
+        from .core.llm.gemini_oauth import GeminiOAuthProvider
+        model = config.get_str("llm", "gemini-cli", "model", default=defaults["model"])
+        return GeminiOAuthProvider(model_name=model)
 
     cfg_key = _CONFIG_KEY_MAP.get(name, name)
     api_key = config.get_str("llm", cfg_key, "apiKey", env=defaults["env"])

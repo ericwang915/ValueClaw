@@ -69,10 +69,17 @@ PROVIDERS = [
     },
     {
         "key": "gemini",
-        "name": "Gemini (Google)",
-        "default_model": "gemini-2.0-flash",
+        "name": "Gemini (Google) — API key",
+        "default_model": "gemini-2.5-flash",
         "default_base": None,
         "env": "GEMINI_API_KEY",
+    },
+    {
+        "key": "gemini-cli",
+        "name": "Gemini CLI (free via Google login — no API key needed)",
+        "default_model": "gemini-2.5-flash",
+        "default_base": None,
+        "env": "_GEMINI_CLI_",
     },
     {
         "key": "kimi",
@@ -107,13 +114,17 @@ def run_onboard(config_path: str | None = None) -> Path:
 
     # 1. Primary LLM
     provider = _choose_provider(cfg, "Choose your PRIMARY LLM provider:")
-    api_key = _get_api_key(provider, cfg)
-
     prov = provider["key"]
     cfg.setdefault("llm", {})
     cfg["llm"]["provider"] = prov
     cfg["llm"].setdefault(prov, {})
-    cfg["llm"][prov]["apiKey"] = api_key
+
+    if prov == "gemini-cli":
+        _setup_gemini_cli(cfg)
+    else:
+        api_key = _get_api_key(provider, cfg)
+        cfg["llm"][prov]["apiKey"] = api_key
+
     cfg["llm"][prov].setdefault("model", provider["default_model"])
     if provider["default_base"]:
         cfg["llm"][prov].setdefault("baseUrl", provider["default_base"])
@@ -150,6 +161,22 @@ def _load_existing(config_path: str | None) -> dict:
         return config.as_dict()
     except Exception:
         return {}
+
+
+# ── Gemini CLI setup ──────────────────────────────────────────────────────────
+
+def _setup_gemini_cli(cfg: dict) -> None:
+    """Check for Gemini CLI OAuth credentials (~/.gemini/oauth_creds.json)."""
+    from pathlib import Path
+    creds_path = Path.home() / ".gemini" / "oauth_creds.json"
+    if creds_path.exists():
+        print(f"  → Found Gemini CLI credentials at {creds_path}")
+        print(_c("    OAuth tokens will be used automatically (no API key needed)", _DIM))
+    else:
+        print(_c("  Gemini CLI credentials not found!", _RED))
+        print(_c("  Run `gemini auth login` first to authenticate with Google.", _DIM))
+        print(_c("  Then re-run `value_claw onboard`.", _DIM))
+    print()
 
 
 # ── Provider selection ────────────────────────────────────────────────────────
@@ -266,15 +293,18 @@ def _configure_fallback(cfg: dict, primary: dict) -> None:
 
     cfg["llm"]["fallback"] = fb["key"]
     print(f"  → Fallback: {_c(fb['name'], _GREEN)}")
+    cfg["llm"].setdefault(fb["key"], {})
 
-    fb_existing = cfg.get("llm", {}).get(fb["key"], {}).get("apiKey", "")
-    if not fb_existing:
-        fb_key = _get_api_key(fb, cfg)
-        cfg["llm"].setdefault(fb["key"], {})
-        cfg["llm"][fb["key"]]["apiKey"] = fb_key
-        cfg["llm"][fb["key"]].setdefault("model", fb["default_model"])
-        if fb["default_base"]:
-            cfg["llm"][fb["key"]].setdefault("baseUrl", fb["default_base"])
+    if fb["key"] == "gemini-cli":
+        _setup_gemini_cli(cfg)
+    else:
+        fb_existing = cfg.get("llm", {}).get(fb["key"], {}).get("apiKey", "")
+        if not fb_existing:
+            fb_key = _get_api_key(fb, cfg)
+            cfg["llm"][fb["key"]]["apiKey"] = fb_key
+    cfg["llm"][fb["key"]].setdefault("model", fb["default_model"])
+    if fb["default_base"]:
+        cfg["llm"][fb["key"]].setdefault("baseUrl", fb["default_base"])
     else:
         masked = fb_existing[:4] + "****" + fb_existing[-4:] if len(fb_existing) > 8 else "****"
         print(f"  → Fallback key already configured ({masked})")
@@ -406,8 +436,22 @@ def _prompt_optional_key(cfg: dict, path: list[str], label: str, desc: str) -> N
 def _validate_key(cfg: dict, provider: dict) -> None:
     """Make a quick test call to validate the API key."""
     prov_key = provider["key"]
-    api_key = cfg["llm"][prov_key]["apiKey"]
 
+    if prov_key == "gemini-cli":
+        print(f"  Validating Gemini CLI OAuth...", end=" ", flush=True)
+        try:
+            from .core.llm.gemini_oauth import GeminiOAuthProvider
+            model = cfg["llm"].get("gemini-cli", {}).get("model", provider["default_model"])
+            p = GeminiOAuthProvider(model_name=model)
+            p.chat([{"role": "user", "content": "hi"}])
+            print(_c("✔ Valid!", _GREEN))
+        except Exception as exc:
+            err_str = str(exc)[:100]
+            print(_c(f"✘ {err_str}", _RED))
+            print(_c("  Run `gemini auth login` to authenticate.", _DIM))
+        return
+
+    api_key = cfg["llm"][prov_key].get("apiKey", "")
     is_oauth = prov_key == "claude" and "oat" in api_key[:20]
     label = "OAuth token" if is_oauth else "API key"
     print(f"  Validating {provider['name']} {label}...", end=" ", flush=True)
@@ -485,6 +529,10 @@ def needs_onboard(config_path: str | None = None) -> bool:
     provider = config.get_str("llm", "provider", default="")
     if not provider:
         return True
+
+    if provider == "gemini-cli":
+        from pathlib import Path
+        return not (Path.home() / ".gemini" / "oauth_creds.json").exists()
 
     api_key = config.get_str("llm", provider, "apiKey", default="")
     return not api_key
