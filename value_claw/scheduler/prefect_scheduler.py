@@ -102,7 +102,7 @@ def _bootstrap_jobs_yaml() -> None:
     logger.info("[PrefectScheduler] Bootstrapped default jobs.yaml from template")
 
 
-def _parse_cron(expr: str) -> CronTrigger:
+def _parse_cron(expr: str, timezone: str | None = None) -> CronTrigger:
     """Convert a 5-field cron expression into an APScheduler CronTrigger."""
     parts = expr.strip().split()
     if len(parts) != 5:
@@ -110,6 +110,7 @@ def _parse_cron(expr: str) -> CronTrigger:
     minute, hour, day, month, day_of_week = parts
     return CronTrigger(
         minute=minute, hour=hour, day=day, month=month, day_of_week=day_of_week,
+        timezone=timezone,
     )
 
 
@@ -257,15 +258,9 @@ class PrefectScheduler:
         success = True
 
         try:
-            if _HAS_PREFECT and self._prefect_ready:
-                def _call():
-                    with _pt(job_id, "cron"):
-                        return _prefect_flow_fn(job_id=job_id, prompt=prompt)
-                response = await loop.run_in_executor(None, _call)
-            else:
-                agent = self._sm.get_or_create(session_id)
-                response = await loop.run_in_executor(None, agent.chat, prompt)
-            logger.info("[PrefectScheduler] Job '%s' completed.", job_id)
+            agent = self._sm.get_or_create(session_id)
+            response = await loop.run_in_executor(None, agent.chat, prompt)
+            logger.info("[PrefectScheduler] Job '%s' completed (%d chars).", job_id, len(response or ""))
         except Exception as exc:
             logger.exception("[PrefectScheduler] Job '%s' failed: %s", job_id, exc)
             response = f"[Cron job '{job_id}' failed]\n{exc}"
@@ -276,7 +271,7 @@ class PrefectScheduler:
         if deliver_to == "telegram" and chat_id and self._telegram_bot:
             try:
                 status_icon = "✅" if success else "❌"
-                header = f"{status_icon} Cron job: {job_id} ({duration:.1f}s)\n\n"
+                header = f"{status_icon} **{job_id}** ({duration:.0f}s)\n\n"
                 await self._telegram_bot.send_message(chat_id, header + (response or ""))
             except Exception as exc:
                 logger.error(
@@ -286,9 +281,18 @@ class PrefectScheduler:
 
     # ── Scheduler lifecycle ──────────────────────────────────────────────────
 
+    def _get_default_timezone(self) -> str | None:
+        """Read default cron timezone from jobs.yaml or config."""
+        if not os.path.exists(self._jobs_path):
+            return None
+        with open(self._jobs_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return data.get("timezone")
+
     def load_and_register_jobs(self) -> int:
         """Parse jobs.yaml and register enabled jobs with APScheduler."""
         jobs = self._load_jobs()
+        default_tz = self._get_default_timezone()
         registered = 0
         for job in jobs:
             job_id = job.get("id", "unnamed")
@@ -306,8 +310,9 @@ class PrefectScheduler:
 
             deliver_to = job.get("deliver_to")
             chat_id_val = job.get("chat_id")
+            tz = job.get("timezone", default_tz)
 
-            trigger = _parse_cron(cron_expr)
+            trigger = _parse_cron(cron_expr, timezone=tz)
             self._scheduler.add_job(
                 self._run_job,
                 trigger=trigger,
@@ -321,9 +326,10 @@ class PrefectScheduler:
             self._jobs_meta[job_id] = {
                 "cron": cron_expr, "prompt": prompt,
                 "deliver_to": deliver_to, "chat_id": chat_id_val,
-                "source": "static",
+                "source": "static", "timezone": tz,
             }
-            logger.info("[PrefectScheduler] Registered static job '%s' cron='%s'", job_id, cron_expr)
+            tz_label = f" tz='{tz}'" if tz else ""
+            logger.info("[PrefectScheduler] Registered static job '%s' cron='%s'%s", job_id, cron_expr, tz_label)
             registered += 1
 
         return registered
@@ -514,19 +520,17 @@ class PrefectScheduler:
         scheduler_jobs = self._scheduler.get_jobs()
         dynamic = self._load_dynamic_jobs()
         if not scheduler_jobs:
-            return f"No scheduled jobs.\nPrefect UI: {self.prefect_ui_url}"
+            return "No scheduled jobs."
 
         lines = []
         for job in scheduler_jobs:
             tag = "[dynamic]" if job.id in dynamic else "[static]"
+            meta = self._jobs_meta.get(job.id, {})
+            tz = meta.get("timezone", "system")
             next_run = job.next_run_time.strftime("%Y-%m-%d %H:%M %Z") if job.next_run_time else "paused"
-            lines.append(f"  {tag} {job.id} | next: {next_run}")
+            lines.append(f"  {tag} {job.id} | cron: {meta.get('cron', '?')} ({tz}) | next: {next_run}")
 
-        return (
-            "Active cron jobs:\n"
-            + "\n".join(lines)
-            + f"\n\nPrefect UI: {self.prefect_ui_url}"
-        )
+        return "Active cron jobs:\n" + "\n".join(lines)
 
     # ── Strategy job management ─────────────────────────────────────────────
 

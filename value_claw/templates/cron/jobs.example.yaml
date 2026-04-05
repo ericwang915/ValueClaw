@@ -8,9 +8,14 @@
 # deliver_to: "telegram" sends the result to the chat_id via Telegram bot
 # enabled: set to false to skip a job without removing it
 #
+# timezone: default timezone for cron times (per-job override with "timezone:")
+#   Examples: "US/Eastern", "Asia/Shanghai", "Europe/London"
+#
 # You can also create jobs dynamically via the bot:
 #   "每天早上9点分析TSLA"  or  "Schedule a daily market briefing at 9am"
 # ─────────────────────────────────────────────────────────────────────────
+
+timezone: "US/Eastern"
 
 jobs:
   # ── Market Briefings ────────────────────────────────────────────────────
